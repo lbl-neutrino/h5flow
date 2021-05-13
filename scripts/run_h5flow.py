@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import yaml
+from yaml import Loader
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -9,18 +10,18 @@ import h5flow.process
 
 def main(input_filename, output_filename, config, start_position=None, end_position=None):
     with open(config,'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f, Loader=Loader)
 
     if rank == 0: print(config)
     manager = h5flow.process.H5FlowManager(input_filename, output_filename, config, start_position=start_position, end_position=end_position)
 
-    if rank == 0: print('INIT')
+    if rank == 0: print('\nINIT\n')
     manager.init()
 
-    if rank == 0: print('RUN')
+    if rank == 0: print('\nRUN\n')
     manager.run()
 
-    if rank == 0: print('FINISH')
+    if rank == 0: print('\nFINISH\n')
     manager.finish()
 
 if __name__ == '__main__':

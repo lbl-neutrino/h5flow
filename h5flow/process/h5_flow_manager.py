@@ -1,11 +1,16 @@
 import h5py
 import numpy as np
 import shutil
+import os
 from mpi4py import MPI
 from tqdm import tqdm
 
-from ..data import open_file, get_dset
+from ..data import H5FlowDataManager
 from ..module import get_class
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 class H5FlowManager(object):
     def __init__(self, input_filename, output_filename, config, start_position=None, end_position=None):
@@ -13,8 +18,9 @@ class H5FlowManager(object):
         self.start_position = start_position
         self.end_position = end_position
 
+        self.remove(output_filename, block=False)
         self.copy(input_filename, output_filename)
-        self.output_file = open_file(output_filename)
+        self.output_file = H5FlowDataManager(output_filename)
 
         self.stage_names = config['flow'].get('stages')
         self.stage_args = [config.get(stage_name) for stage_name in self.stage_names]
@@ -28,37 +34,37 @@ class H5FlowManager(object):
             for name,args in zip(self.stage_names, self.stage_args)
             ]
 
-    def copy(self, f0, f1):
+    def remove(self, f, block=True):
+        if rank == 0:
+            os.remove(f)
+        if block:
+            comm.barrier()
+
+    def copy(self, f0, f1, block=True):
         # copies the whole file for the time being
-        comm = MPI.COMM_WORLD
-        if comm.Get_rank() == 0:
+        if rank == 0:
             shutil.copy(f0, f1)
-        comm.barrier()
+        if block:
+            comm.barrier()
 
     def init(self):
-        comm = MPI.COMM_WORLD
         for stage in self.stages:
             stage.init()
         comm.barrier()
 
     def run(self):
-        comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
-        size = comm.Get_size()
-
         sel = slice(self.start_position, self.end_position)
-        chunks = list(get_dset(self.output_file, self.source).iter_chunks(sel=sel if sel.start or sel.stop else None))[rank::size]
+        chunks = list(self.output_file.get_dset(self.source).iter_chunks(sel=sel if sel.start or sel.stop else None))[rank::size]
 
         len_chunks = comm.allgather(len(chunks))
         chunks += [(slice(0,0,1),)] * (max(len_chunks) - len(chunks))
-        for chunk in tqdm(chunks, desc=f'Rank:{rank}'):
+        for chunk in tqdm(chunks, desc=f'{rank}'):
             for stage in self.stages:
                 stage.run(chunk)
         comm.barrier()
 
     def finish(self):
-        comm = MPI.COMM_WORLD
-        self.output_file.close()
+        self.output_file.close_file()
         comm.barrier()
 
 

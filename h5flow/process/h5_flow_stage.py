@@ -1,7 +1,9 @@
 import h5py
 import numpy as np
+from mpi4py import MPI
 
-from ..data import open_file, get_dset, get_ref
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
 
 class H5FlowStage(object):
     def __init__(self, **params):
@@ -25,10 +27,9 @@ class H5FlowStage(object):
 
     def load_data(self, source_slice):
         data = dict()
-        data[self.source] = get_dset(self.output_file, self.source)[source_slice]
+        data[self.source] = self.output_file.get_dset(self.source)[source_slice]
 
         for linked_name in self.requires:
-            linked_dset = get_dset(self.output_file, linked_name)
-            data[self.linked_name] = [linked_dset[ref] for ref in get_ref(self.output_file, self.source, linked_name)[source_slice]]
-
+            linked_dset = self.output_file.get_dset(linked_name)
+            data[linked_name] = [linked_dset[ref] for ref in self.output_file.get_ref(self.source, linked_name)[source_slice]]
         return data

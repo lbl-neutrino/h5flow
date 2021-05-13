@@ -1,10 +1,17 @@
-# Describes a simple test flow that copies one dataset to another
+# Describes a simple test flow that copies one dataset to others
 
 flow:
-  source: 'input/events'
-  stages: [test_stage]
+  source: input/events
+  stages: [test_stage0, test_stage1]
 
-test_stage:
-  classname: 'Test'
+test_stage0:
+  classname: Test
   params:
-    output_dset: 'events'
+    output_dset: events
+
+test_stage1:
+  classname: Test
+  params:
+    output_dset: events
+    requires:
+      - test_stage0/events
