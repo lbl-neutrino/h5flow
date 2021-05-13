@@ -1,0 +1,10 @@
+# Describes a simple test flow that copies one dataset to another
+
+flow:
+  source: 'input/events'
+  stages: [test_stage]
+
+test_stage:
+  classname: 'Test'
+  params:
+    output_dset: 'events'
