@@ -10,6 +10,12 @@ class H5FlowDataManager(object):
     def __init__(self, filepath):
         self.filepath = filepath
         self._fh = None
+        if rank == 0:
+            self.fh.swmr_mode = True
+            comm.barrier()
+        else:
+            comm.barrier()
+            self.open_file()
 
     def open_file(self):
         if self._fh is not None:
@@ -35,7 +41,7 @@ class H5FlowDataManager(object):
         return dset
 
     def get_attrs(self, stage_name):
-        return self.fh[f'{stage_name}']
+        return self.fh[f'{stage_name}'].attrs
 
     def get_ref(self, dataset_name, child_dataset_name):
         dset = self.fh[f'{dataset_name}/ref/{child_dataset_name}']
