@@ -14,6 +14,8 @@ setup(name='h5flow',
         'h5py',
         'mpi4py',
         'yaml',
-        'tqdm'
+        'tqdm',
+        'pytest',
+        'pytest-mpi'
       ]
      )
