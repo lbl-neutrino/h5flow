@@ -4,14 +4,23 @@ flow:
   source: input/events
   stages: [test_stage0, test_stage1]
 
-test_stage0:
-  classname: Test
+input/events:
+  classname: H5FlowDatasetLoopGenerator
   params:
-    output_dset: events
+    chunk_size: 102400
+
+test_stage0:
+  classname: TestStage
+  params:
+    input_dset: 'input/events'
+    output_dset: 'test_stage0/events'
 
 test_stage1:
-  classname: Test
+  classname: TestStage
   params:
-    output_dset: events
+    input_dset: 'input/events'
+    output_dset: 'test_stage1/events'
     requires:
-      - test_stage0/events
+      - 'test_stage0/events'
+
+
