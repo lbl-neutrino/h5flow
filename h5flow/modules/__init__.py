@@ -7,6 +7,8 @@ from pkgutil import iter_modules
 def find_class(classname, directory):
     path = directory
     for (finder, name, _) in iter_modules([path]):
+        if name == 'setup' or name == 'h5flow':
+            continue
         spec = finder.find_spec(name)
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module

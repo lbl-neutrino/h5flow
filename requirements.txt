@@ -1,0 +1,7 @@
+numpy~=1.16
+h5py~=3.2
+mpi4py~=3.0
+PyYAML~=5.1
+tqdm~=4.60
+pytest~=6.2
+pytest-mpi~=0.5
