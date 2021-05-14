@@ -2,19 +2,33 @@
 
 A basic MPI framework to create simple sequential workflows, looping over
 a dataset within a structured HDF5 file. All MPI calls are hidden behind an API
-to allow for (hopefully) seamless running in either of a single-process or
+to allow for (hopefully) seamless running in either a single-process or a
 multi-process environment.
 
 ## installation
 
-To install::
+To setup a fresh conda environment::
 
-    pip install -r requirements.txt
+    conda create --name <env> --file requirements.txt
     pip install .
+
+To update an existing environment::
+
+    conda activate <env>
+    conda install --file requirements.txt
+    pip install .
+
+To run tests::
+
+    pytest
+
+To run mpi tests::
+
+    mpiexec pytest --with-mpi
 
 ## usage
 
-To run a workflow::
+To run a single-process workflow::
 
     h5flow -i <input file>.h5 -o <output file>.h5 -c <config file>.yaml\
         -s <start position, opt.> -e <end position, opt.>
