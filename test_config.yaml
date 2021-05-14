@@ -7,7 +7,7 @@ flow:
 input/events:
   classname: H5FlowDatasetLoopGenerator
   params:
-    chunk_size: 102400
+    chunk_size: 1024
 
 test_stage0:
   classname: TestStage
