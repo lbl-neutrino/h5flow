@@ -5,6 +5,7 @@ from yaml import Loader
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
+size = comm.Get_size()
 
 import h5flow.process
 
@@ -15,13 +16,13 @@ def main(input_filename, output_filename, config, start_position=None, end_posit
     if rank == 0: print(config)
     manager = h5flow.process.H5FlowManager(input_filename, output_filename, config, start_position=start_position, end_position=end_position)
 
-    if rank == 0: print('\nINIT\n')
+    print(f'\n~~~ INIT {rank}/{size} ~~~\n')
     manager.init()
 
-    if rank == 0: print('\nRUN\n')
+    print(f'\n~~~ RUN {rank}/{size} ~~~\n')
     manager.run()
 
-    if rank == 0: print('\nFINISH\n')
+    print(f'\n~~~ FINISH {rank}/{size} ~~~\n')
     manager.finish()
 
 if __name__ == '__main__':

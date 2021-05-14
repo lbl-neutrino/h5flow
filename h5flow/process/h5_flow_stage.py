@@ -4,15 +4,17 @@ from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
+size = comm.Get_size()
 
 class H5FlowStage(object):
     def __init__(self, **params):
+        self.rank = rank
+        self.size = size
+
         self.source = params.get('source')
         self.name = params.get('name')
         self.classname = params.get('classname')
-
-        self.output_file = params.get('output_file')
-
+        self.data_manager = params.get('data_manager')
         self.requires = params.get('requires', list())
 
     def init(self):
@@ -27,9 +29,9 @@ class H5FlowStage(object):
 
     def load_data(self, source_slice):
         data = dict()
-        data[self.source] = self.output_file.get_dset(self.source)[source_slice]
+        data[self.source] = self.data_manager.get_dset(self.source)[source_slice]
 
         for linked_name in self.requires:
-            linked_dset = self.output_file.get_dset(linked_name)
-            data[linked_name] = [linked_dset[ref] for ref in self.output_file.get_ref(self.source, linked_name)[source_slice]]
+            linked_dset = self.data_manager.get_dset(linked_name)
+            data[linked_name] = [linked_dset[ref] for ref in self.data_manager.get_ref(self.source, linked_name)[source_slice]]
         return data

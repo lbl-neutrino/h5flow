@@ -20,7 +20,7 @@ class H5FlowManager(object):
 
         self.remove(output_filename, block=False)
         self.copy(input_filename, output_filename)
-        self.output_file = H5FlowDataManager(output_filename)
+        self.data_manager = H5FlowDataManager(output_filename)
 
         self.stage_names = config['flow'].get('stages')
         self.stage_args = [config.get(stage_name) for stage_name in self.stage_names]
@@ -29,7 +29,7 @@ class H5FlowManager(object):
                 classname=args.get('classname'),
                 name=name,
                 source=self.source,
-                output_file=self.output_file,
+                data_manager=self.data_manager,
                 **args.get('params',dict()))
             for name,args in zip(self.stage_names, self.stage_args)
             ]
@@ -54,7 +54,7 @@ class H5FlowManager(object):
 
     def run(self):
         sel = slice(self.start_position, self.end_position)
-        chunks = list(self.output_file.get_dset(self.source).iter_chunks(sel=sel if sel.start or sel.stop else None))[rank::size]
+        chunks = list(self.data_manager.get_dset(self.source).iter_chunks(sel=sel if sel.start or sel.stop else None))[rank::size]
 
         len_chunks = comm.allgather(len(chunks))
         chunks += [(slice(0,0,1),)] * (max(len_chunks) - len(chunks))
@@ -64,7 +64,7 @@ class H5FlowManager(object):
         comm.barrier()
 
     def finish(self):
-        self.output_file.close_file()
+        self.data_manager.close_file()
         comm.barrier()
 
 
