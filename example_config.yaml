@@ -18,9 +18,8 @@ example_stage0:
 
 example_stage1:
   classname: ExampleStage
+  requires:
+      - 'example_stage0/example'
   params:
     output_dset: 'example_stage1/example'
-    requires:
-      - 'example_stage0/example'
-
 

@@ -50,6 +50,7 @@ class H5FlowManager(object):
                 classname=args.get('classname'),
                 name=name,
                 data_manager=self.data_manager,
+                requires=args.get('requires',None),
                 **args.get('params',dict()))
             for name,args in zip(stage_names, stage_args)
             ]

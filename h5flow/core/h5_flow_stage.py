@@ -47,11 +47,11 @@ class H5FlowStage(object):
 
 
     '''
-    def __init__(self, name, classname, data_manager, **params):
+    def __init__(self, name, classname, data_manager, requires=None, **params):
         self.name = name
         self.classname = classname
         self.data_manager = data_manager
-        self.requires = params.get('requires', list())
+        self.requires = requires if requires is not None else list()
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
