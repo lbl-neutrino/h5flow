@@ -81,6 +81,7 @@ file::
 
     dummy_generator:
         classname: DummyGenerator
+        dset_name: <dataset to be accessed by each stage>
         params:
             dummy_param: value
 
