@@ -1,27 +1,28 @@
-# Describes a simple test flow that copies one dataset to others
+# Describes a simple test flow that generates random numbers and then copies and links across additional datasets
 
 flow:
-  source: input/events
+  source: input
   stages: [test_stage0, test_stage1]
 
-# input:
-#   classname: H5FlowDatasetLoopGenerator
-#   dset_name: input/events
-#   params:
-#     chunk_size: 1024
+input:
+  classname: TestGenerator
+  dset_name: input/test
+  params:
+    max_value: 256
+    chunk_size: 1024
 
 test_stage0:
   classname: TestStage
   params:
-    input_dset: 'input/events'
-    output_dset: 'test_stage0/events'
+    input_dset: 'input/test'
+    output_dset: 'test_stage0/test'
 
 test_stage1:
   classname: TestStage
   params:
-    input_dset: 'input/events'
-    output_dset: 'test_stage1/events'
+    input_dset: 'input/test'
+    output_dset: 'test_stage1/test'
     requires:
-      - 'test_stage0/events'
+      - 'test_stage0/test'
 
 

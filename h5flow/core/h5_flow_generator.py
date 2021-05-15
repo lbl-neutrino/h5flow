@@ -15,17 +15,17 @@ class H5FlowGenerator(object):
          - ``rank``: MPI group rank
          - ``size``: MPI group size
 
-         To build a custom generator, inherit from this base class and implement
-         the ``next()`` method.
+        To build a custom generator, inherit from this base class and implement
+        the ``next()`` method.
 
-         Example::
+        Example::
 
             class ExampleGenerator(H5FlowGenerator):
                 default_max_value = 2**32-1
                 default_chunk_size = 1024
                 default_iterations = 100
 
-                def __init__(**params):
+                def __init__(self, **params):
                     super(ExampleGenerator,self).__init__(**params)
 
                     # grab parameters from configuration file here, e.g.

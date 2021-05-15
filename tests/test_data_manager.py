@@ -23,6 +23,11 @@ def test_init(testfile, datamanager):
     assert datamanager.filepath == testfile
     # check that file opens ok
     assert datamanager.fh
+    # check that the file closes ok
+    datamanager.close_file()
+    assert not datamanager._fh
+    # check that file (re)opens ok
+    assert datamanager.fh
 
 @pytest.fixture
 def empty_testdset(datamanager):

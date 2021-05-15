@@ -1,6 +1,36 @@
-import time
+import numpy as np
 
-from h5flow.core import H5FlowStage
+from h5flow.core import H5FlowStage, H5FlowGenerator
+
+class TestGenerator(H5FlowGenerator):
+    default_max_value = 2**32-1
+    default_chunk_size = 1024
+    default_iterations = 100
+
+    def __init__(self, **params):
+        super(TestGenerator,self).__init__(**params)
+
+        # grab parameters from configuration file here, e.g.
+        self.max_value = params.get('max_value', self.default_max_value)
+        self.chunk_size = params.get('chunk_size', self.default_chunk_size)
+
+        # and do any initialization here, e.g.
+        self.data_manager.create_dset(self.dset_name, dtype=int)
+
+        if self.end_position is None:
+            self.end_position = self.default_iterations
+
+        self.iteration = 0
+
+    def next(self):
+        if self.iteration >= self.end_position:
+            return H5FlowGenerator.EMPTY
+        self.iteration += 1
+
+        next_slice = self.data_manager.reserve_data(self.dset_name, self.chunk_size)
+        self.data_manager.write_data(self.dset_name, next_slice, np.random.randint(self.max_value, self.chunk_size))
+
+        return next_slice
 
 class TestStage(H5FlowStage):
     def __init__(self, **params):
