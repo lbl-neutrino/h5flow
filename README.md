@@ -30,13 +30,13 @@ To run mpi tests::
 
 To run a single-process workflow::
 
-    h5flow -i <input file>.h5 -o <output file>.h5 -c <config file>.yaml\
-        -s <start position, opt.> -e <end position, opt.>
+    h5flow -o <output file>.h5 -c <config file>.yaml\
+        -i <input file, opt.> -s <start position, opt.> -e <end position, opt.>
 
 To run a parallelized workflow::
 
-    mpiexec h5flow -i <input file>.h5 -o <output file>.h5 -c <config file>.yaml\
-        -s <start position, opt.> -e <end position, opt.>
+    mpiexec h5flow -o <output file>.h5 -c <config file>.yaml\
+        -i <input file, opt.> -s <start position, opt.> -e <end position, opt.>
 
 # h5flow hdf5 structure
 
