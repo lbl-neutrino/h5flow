@@ -7,25 +7,22 @@ class TestStage(H5FlowStage):
         super(TestStage, self).__init__(**params)
         self.output_dset = params.get('output_dset')
 
-    def init(self):
+    def init(self, source_name):
         # best practice is to write all configuration variables to the dataset
         self.data_manager.set_attrs(
             self.output_dset,
             classname=self.classname,
+            input_dset=source_name,
             output_dset=self.output_dset,
             test_attr='test_value'
             )
 
+        dtype = self.data_manager.get_dset(source_name).dtype
+        self.data_manager.create_dset(self.output_dset, dtype=dtype)
+        self.data_manager.create_ref(self.output_dset, source_name)
+        self.data_manager.create_ref(source_name, self.output_dset)
+
     def run(self, source_name, source_slice):
-        if not self.data_manager.dset_exists(self.output_dset):
-            # on first iteration create dataset(s)
-            self.data_manager.set_attrs(self.output_dset, input_dset=source_name)
-
-            dtype = self.data_manager.get_dset(source_name).dtype
-            self.data_manager.create_dset(self.output_dset, dtype=dtype)
-            self.data_manager.create_ref(self.output_dset, source_name)
-            self.data_manager.create_ref(source_name, self.output_dset)
-
         # load a copy of the data into memory
         data = self.load(source_name, source_slice)
         data[source_name]

@@ -11,23 +11,32 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
     rank = MPI.COMM_WORLD.Get_rank()
 
     if rank == 0:
-        print('\n~~~ CONFIG DUMP ~~~')
+        print('~~~ CONFIG DUMP ~~~')
         with open(config,'r') as f:
             for line in f.readlines():
                 print(line, end='')
+        print('~~~~~~~~~~~~~~~~~~~')
     with open(config,'r') as f:
         config = yaml.load(f, Loader=Loader)
 
+    if rank == 0:
+        print('~~~ INIT ~~~')
     manager = H5FlowManager(input_filename, output_filename, config, start_position=start_position, end_position=end_position)
-
-    print(f'\n~~~ INIT {rank} ~~~')
     manager.init()
+    if rank == 0:
+        print('~~~~~~~~~~~~')
 
-    print(f'\n~~~ RUN {rank} ~~~')
+    if rank == 0:
+        print('~~~ RUN ~~~')
     manager.run()
+    if rank == 0:
+        print('~~~~~~~~~~~')
 
-    print(f'\n~~~ FINISH {rank} ~~~')
+    if rank == 0:
+        print('~~~ FINISH ~~~')
     manager.finish()
+    if rank == 0:
+        print('~~~~~~~~~~~~~~')
 
 def main():
     parser = argparse.ArgumentParser()

@@ -30,11 +30,11 @@ class H5FlowManager(object):
 
     def configure_generator(self, input_filename, config, start_position, end_position):
         source_name = config['flow'].get('source')
-        source_config = config.get(source_name, self.default_generator_config(source_name))
+        source_config = config[source_name] if source_name in config else self.default_generator_config(source_name)
 
         self.generator = get_class(source_config.get('classname'))(
             classname=source_config.get('classname'),
-            name=source_name,
+            dset_name=source_config.get('dset_name'),
             data_manager=self.data_manager,
             input_filename=input_filename,
             start_position=start_position,
@@ -54,19 +54,24 @@ class H5FlowManager(object):
             for name,args in zip(stage_names, stage_args)
             ]
 
-    @staticmethod
-    def default_generator_config(source_name):
-        return dict(classname='H5FlowDatasetLoopGenerator')
+    def default_generator_config(self, source_name):
+        if self.rank == 0:
+            print(f'Could not find generator description, using default dataset loop behavior on {source_name}')
+        return dict(
+            classname='H5FlowDatasetLoopGenerator',
+            dset_name=source_name
+            )
 
     def init(self):
         for stage in self.stages:
-            stage.init()
+            stage.init(self.generator.dset_name)
         self.comm.barrier()
 
     def run(self):
-        for name, chunk in tqdm(self.generator, desc=f'{self.rank}'):
+        loop_gen = tqdm(self.generator) if self.rank == 0 else self.generator
+        for chunk in loop_gen:
             for stage in self.stages:
-                stage.run(name, chunk)
+                stage.run(self.generator.dset_name, chunk)
         self.comm.barrier()
 
     def finish(self):

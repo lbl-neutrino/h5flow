@@ -8,7 +8,43 @@ size = comm.Get_size()
 
 class H5FlowStage(object):
     '''
-        Base class for loop stage
+        Base class for loop stage. Provides the following attributes:
+         - ``name``: instance name of stage (declared in configuration file)
+         - ``classname``: stage class
+         - ``data_manager``: an ``H5FlowDataManager`` instance used to access the output file
+         - ``requires``: a list of dataset names to load when calling ``H5FlowStage.load()``
+         - ``comm``: MPI world communicator (if needed)
+         - ``rank``: MPI group rank
+         - ``size``: MPI group size
+
+         To build a custom stage, inherit from this base class and implement
+         the ``init()`` and the ``run()`` methods.
+
+         Example::
+
+            class ExampleStage(H5FlowStage):
+                custom_param_default_value = None
+                default_obj_name = 'obj0'
+
+                def __init__(**params):
+                    super(ExampleStage,self).__init__(**params)
+
+                    # grab parameters from configuration file here, e.g.
+                    self.custom_param = params.get('custom_param', self.custom_param_default_value)
+                    self.obj_name = self.name + '/' + params.get('obj_name', self.default_obj_name)
+
+                def init(self, source_name):
+                    # declare any new datasets and set dataset metadata, e.g.
+
+                    self.data_manager.set_attrs(self.obj_name, custom_param=self.custom_param)
+                    self.data_manager.create_dset(self.obj_name)
+
+                def run(self, source_name, source_slice):
+                    # load, process, and save new data objects
+
+                    data = self.load(source_name, source_slice)
+
+
 
     '''
     def __init__(self, name, classname, data_manager, **params):
@@ -21,7 +57,7 @@ class H5FlowStage(object):
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
 
-    def init(self):
+    def init(self, source_name):
         '''
             Called once before starting the loop. Used to create datasets and
             set file meta-data

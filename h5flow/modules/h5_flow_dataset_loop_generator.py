@@ -4,6 +4,33 @@ import shutil
 from h5flow.core import H5FlowGenerator
 
 class H5FlowDatasetLoopGenerator(H5FlowGenerator):
+    '''
+        Default dataset looping generator
+
+        First copies input file to output file. Then slices up the dataset
+        defined by ``dset_name`` into ``chunk_size`` chunks, separated by MPI rank.
+
+        For some example use cases, the default configuration declaration::
+
+            flow:
+                source: <group name>/<dataset group name>
+                stages: [...]
+
+        will auto chunk the dataset given by ``<group name>/<dataset group name>``.
+        But the manual chunk size specification::
+
+            flow:
+                source: input
+                stages: [...]
+
+            input:
+                classname: H5FlowDatasetLoopGenerator
+                dset_name: <group name>/<dataset group name>
+                params:
+                    chunk_size: <num_rows>
+        will chunk the same dataset, but into chunks of ``<num_rows>``.
+
+    '''
     def __init__(self, **params):
         super(H5FlowDatasetLoopGenerator, self).__init__(**params)
 
@@ -21,7 +48,7 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
         else:
             curr_slice = self.slices[self.iteration]
         self.iteration += 1
-        return self.name, curr_slice
+        return curr_slice
 
     def __len__(self):
         return len(self.slices)
@@ -32,7 +59,7 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
 
         '''
         # Get the dataset that we will loop over
-        dset = self.data_manager.get_dset(self.name)
+        dset = self.data_manager.get_dset(self.dset_name)
 
         if self.chunk_size == 'auto':
             # in auto mode, use the default chunk size in the hdf5 file
