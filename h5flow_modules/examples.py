@@ -2,13 +2,13 @@ import numpy as np
 
 from h5flow.core import H5FlowStage, H5FlowGenerator
 
-class TestGenerator(H5FlowGenerator):
+class ExampleGenerator(H5FlowGenerator):
     default_max_value = 2**32-1
     default_chunk_size = 1024
-    default_iterations = 100
+    default_iterations = 10
 
     def __init__(self, **params):
-        super(TestGenerator,self).__init__(**params)
+        super(ExampleGenerator,self).__init__(**params)
 
         self.max_value = params.get('max_value', self.default_max_value)
         self.chunk_size = params.get('chunk_size', self.default_chunk_size)
@@ -31,9 +31,9 @@ class TestGenerator(H5FlowGenerator):
 
         return next_slice
 
-class TestStage(H5FlowStage):
+class ExampleStage(H5FlowStage):
     def __init__(self, **params):
-        super(TestStage, self).__init__(**params)
+        super(ExampleStage, self).__init__(**params)
         self.output_dset = params.get('output_dset')
 
     def init(self, source_name):

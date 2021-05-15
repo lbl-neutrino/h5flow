@@ -1,0 +1,26 @@
+# Describes a simple example flow that generates random numbers and then copies and links across 2 additional datasets
+
+flow:
+  source: input
+  stages: [example_stage0, example_stage1]
+
+input:
+  classname: ExampleGenerator
+  dset_name: 'input/random'
+  params:
+    max_value: 256
+    chunk_size: 1024
+
+example_stage0:
+  classname: ExampleStage
+  params:
+    output_dset: 'example_stage0/example'
+
+example_stage1:
+  classname: ExampleStage
+  params:
+    output_dset: 'example_stage1/example'
+    requires:
+      - 'example_stage0/example'
+
+
