@@ -66,7 +66,7 @@ class H5FlowStage(object):
         '''
         pass
 
-    def run(self, source_name, source_slice):
+    def run(self, source_name, source_slice, cache):
         '''
             Called once per ``source_slice`` provided by the ``h5flow``
             generator.
@@ -75,26 +75,31 @@ class H5FlowStage(object):
 
             :param source_slice: a 1D slice into the source dataset
 
+            :param cache: pre-loaded data from ``requires`` list
+
             :returns: ``None``
         '''
         pass
 
-    def load(self, source_name, source_slice):
+    def update_cache(self, cache, source_name, source_slice):
         '''
             Load and dereference "required" data associated with a given source
             - first loads the data subset of ``source_name`` specified by the
             ``source_slice``. Then loops over the datasets in ``self.requires``
             and loads data from ``source_name -> required_name`` references.
+            Called automatically once per loop, just before calling ``run``.
+
+            :param cache: ``dict`` cache to update
 
             :param source_name: a path to the source dataset group
 
             :param source_slice: a 1D slice into the source dataset
 
-            :returns: ``dict`` of ``<name> : <data subset>``
         '''
-        data = dict()
-        data[source_name] = self.data_manager.get_dset(source_name)[source_slice]
+        if source_name not in cache:
+            cache[source_name] = self.data_manager.get_dset(source_name)[source_slice]
         for linked_name in self.requires:
-            linked_dset = self.data_manager.get_dset(linked_name)
-            data[linked_name] = [linked_dset[ref] for ref in self.data_manager.get_ref(source_name, linked_name)[source_slice]]
-        return data
+            if linked_name not in cache:
+                linked_dset = self.data_manager.get_dset(linked_name)
+                cache[linked_name] = [linked_dset[ref] for ref in self.data_manager.get_ref(source_name, linked_name)[source_slice]]
+

@@ -70,8 +70,10 @@ class H5FlowManager(object):
     def run(self):
         loop_gen = tqdm(self.generator) if self.rank == 0 else self.generator
         for chunk in loop_gen:
+            cache = dict()
             for stage in self.stages:
-                stage.run(self.generator.dset_name, chunk)
+                stage.update_cache(cache, self.generator.dset_name, chunk)
+                stage.run(self.generator.dset_name, chunk, cache)
         self.comm.barrier()
 
     def finish(self):
