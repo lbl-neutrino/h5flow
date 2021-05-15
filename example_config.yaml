@@ -1,7 +1,8 @@
 # Describes a simple example flow that generates random numbers and then copies and links across 2 additional datasets
 
 flow:
-  source: input
+  source: input # uncomment to use the example generator
+  # source: 'input/random' # uncomment to loop over an existing dataset
   stages: [example_stage0, example_stage1]
 
 input:

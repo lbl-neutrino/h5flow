@@ -3,6 +3,8 @@ import numpy as np
 from h5flow.core import H5FlowStage, H5FlowGenerator
 
 class ExampleGenerator(H5FlowGenerator):
+    class_version = '0.0.0'
+
     # best practice is to declare default values as class attributes
     default_max_value = 2**32-1
     default_chunk_size = 1024
@@ -15,13 +17,22 @@ class ExampleGenerator(H5FlowGenerator):
         self.max_value = params.get('max_value', self.default_max_value)
         self.chunk_size = params.get('chunk_size', self.default_chunk_size)
 
-        # create any new datasets (including references)
-        self.data_manager.create_dset(self.dset_name, dtype=int)
-
         # prepare anything needed for the loop
         if self.end_position is None:
             self.end_position = self.default_iterations
         self.iteration = 0
+
+    def init(self):
+        # create any new datasets (including references)
+        self.data_manager.create_dset(self.dset_name, dtype=int)
+        # best practice to write all config parameters to dataset
+        self.data_manager.set_attrs(self.dset_name,
+            classname=self.classname,
+            class_version=self.class_version,
+            max_value=self.max_value,
+            chunk_size=self.chunk_size,
+            end_position=self.end_position
+            )
 
     def next(self):
         # loop termination condition
@@ -37,6 +48,8 @@ class ExampleGenerator(H5FlowGenerator):
         return next_slice
 
 class ExampleStage(H5FlowStage):
+    class_version = '0.0.0'
+
     def __init__(self, **params):
         super(ExampleStage, self).__init__(**params)
 
@@ -45,10 +58,9 @@ class ExampleStage(H5FlowStage):
 
     def init(self, source_name):
         # best practice is to write all configuration variables to the dataset
-        self.data_manager.set_attrs(
-            self.output_dset,
-            # all of these will be stored as output dataset attributes
+        self.data_manager.set_attrs(self.output_dset,
             classname=self.classname,
+            class_version=self.class_version,
             input_dset=source_name,
             output_dset=self.output_dset,
             test_attr='test_value'

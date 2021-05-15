@@ -64,6 +64,7 @@ class H5FlowManager(object):
             )
 
     def init(self):
+        self.generator.init()
         for stage in self.stages:
             stage.init(self.generator.dset_name)
         self.comm.barrier()

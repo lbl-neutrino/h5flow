@@ -2,6 +2,7 @@ import os
 import shutil
 
 from h5flow.core import H5FlowGenerator
+from h5flow.data import H5FlowDataManager
 
 class H5FlowDatasetLoopGenerator(H5FlowGenerator):
     '''
@@ -27,10 +28,12 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
                 classname: H5FlowDatasetLoopGenerator
                 dset_name: <group name>/<dataset group name>
                 params:
-                    chunk_size: <num_rows>
+                    chunk_size: <num_rows, opt>
         will chunk the same dataset, but into chunks of ``<num_rows>``.
 
     '''
+    class_version = '0.0.0'
+
     def __init__(self, **params):
         super(H5FlowDatasetLoopGenerator, self).__init__(**params)
 
@@ -38,9 +41,12 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
 
         if self.input_filename is None:
             raise RuntimeError('must specify an input filename!')
+
+        self.iteration = 0
+
+    def init(self):
         self.copy(self.input_filename, self.data_manager.filepath)
         self.setup_slices()
-        self.iteration = 0
 
     def next(self):
         if self.iteration >= len(self.slices):
@@ -69,7 +75,7 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
                 sel = None
             self.slices = [sl[0] for sl in dset.iter_chunks(sel=sel)][self.rank::self.size]
         else:
-            # in manual mode, each process grabs chunk_size chunks from the file
+            # in manual mode, each process grabs `chunk_size` chunks from the file
             start = self.rank * self.chunk_size + self.start_position if self.start_position \
                 else self.rank * self.chunk_size
             end = min(self.end_position, len(dset)) if self.end_position \

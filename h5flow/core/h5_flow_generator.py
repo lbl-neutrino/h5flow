@@ -6,6 +6,7 @@ class H5FlowGenerator(object):
     '''
         Base class for generators. Provides the following attributes:
          - ``classname``: stage class
+         - ``class_version``: a ``str`` version number (``'major.minor.fix'``, default = ``'0.0.0'``)
          - ``dset_name``: dataset to be accessed by each stage
          - ``data_manager``: an ``H5FlowDataManager`` instance used to access the output file
          - ``input_filename``: an optional input filename (default = ``None``)
@@ -21,6 +22,8 @@ class H5FlowGenerator(object):
         Example::
 
             class ExampleGenerator(H5FlowGenerator):
+                class_version = '0.0.0'
+
                 default_max_value = 2**32-1
                 default_chunk_size = 1024
                 default_iterations = 100
@@ -28,17 +31,25 @@ class H5FlowGenerator(object):
                 def __init__(self, **params):
                     super(ExampleGenerator,self).__init__(**params)
 
-                    # grab parameters from configuration file here, e.g.
+                    # get config parameters
                     self.max_value = params.get('max_value', self.default_max_value)
                     self.chunk_size = params.get('chunk_size', self.default_chunk_size)
 
-                    # and do any initialization here, e.g.
-                    self.data_manager.create_dset(self.dset_name, dtype=int)
-
+                    # prepare loop
                     if self.end_position is None:
                         self.end_position = self.default_iterations
-
                     self.iteration = 0
+
+                def init(self):
+                    # prepare output file
+                    self.data_manager.create_dset(self.dset_name, dtype=int)
+                    self.data_manager.set_attrs(self.obj_name,
+                        classname=self.classname,
+                        class_version=self.class_version,
+                        max_value=self.max_value,
+                        chunk_size=self.chunk_size,
+                        end_position=self.end_position,
+                        )
 
                 def next(self):
                     if self.iteration >= self.end_position:
@@ -59,6 +70,7 @@ class H5FlowGenerator(object):
 
     '''
     EMPTY = slice(0,0)
+    class_version = '0.0.0'
 
     def __init__(self, classname, dset_name, data_manager, input_filename=None, start_position=None, end_position=None, **params):
         self.classname = classname
@@ -85,6 +97,14 @@ class H5FlowGenerator(object):
             raise StopIteration
 
         return next_slice
+
+    def init(self):
+        '''
+            Prepare output file to be written to, called once before
+            initializing the flow stages.
+
+        '''
+        pass
 
     def next(self):
         '''
