@@ -55,7 +55,7 @@ class H5FlowDataManager(object):
     def fh(self):
         '''
             Direct access to the underlying h5py ``File`` object. Not recommended
-            for dataset access.
+            for writing to datasets.
 
         '''
         if self._fh is None or not self._fh:
@@ -163,8 +163,6 @@ class H5FlowDataManager(object):
         '''
         path = f'{dataset_name}/data'
         if path not in self.fh:
-            if dataset_name not in self.fh:
-                self.fh.create_group(dataset_name)
             self.fh.create_dataset(path, (0,), maxshape=(None,),
                 dtype=dtype)
 
@@ -295,4 +293,3 @@ class H5FlowDataManager(object):
             self.comm.barrier()
         else:
             self.comm.barrier()
-            # self._open_file()
