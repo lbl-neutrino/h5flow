@@ -21,7 +21,7 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
 
     if rank == 0:
         print('~~~ INIT ~~~')
-    manager = H5FlowManager(input_filename, output_filename, config, start_position=start_position, end_position=end_position)
+    manager = H5FlowManager(config, output_filename, input_filename=input_filename, start_position=start_position, end_position=end_position)
     manager.init()
     if rank == 0:
         print('~~~~~~~~~~~~')

@@ -9,7 +9,7 @@ from ..data import H5FlowDataManager
 from ..modules import get_class
 
 class H5FlowManager(object):
-    def __init__(self, input_filename, output_filename, config, start_position=None, end_position=None):
+    def __init__(self, config, output_filename, input_filename=None, start_position=None, end_position=None):
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
