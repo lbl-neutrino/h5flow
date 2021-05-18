@@ -1,45 +1,49 @@
-import yaml
 #!/usr/bin/env python
+import yaml
 import argparse
 import sys
+import logging
 from yaml import Loader
 from mpi4py import MPI
 
 from .core import H5FlowManager
 
-def run(config, output_filename, input_filename=None, start_position=None, end_position=None):
+def run(config, output_filename, input_filename=None, start_position=None, end_position=None, verbose=False):
+    logging.basicConfig(format='%(asctime)s (p%(process)d) %(module)s.%(funcName)s[l%(lineno)d] %(levelname)s : %(message)s', level=logging.DEBUG if verbose else logging.WARNING)
+
     rank = MPI.COMM_WORLD.Get_rank()
 
     if rank == 0:
-        print('~~~ CONFIG DUMP ~~~')
+        logging.info('~~~ CONFIG DUMP ~~~')
         with open(config,'r') as f:
             for line in f.readlines():
-                print(line, end='')
-        print('~~~~~~~~~~~~~~~~~~~')
+                logging.info(line.strip('\n'))
+        logging.info('~~~~~~~~~~~~~~~~~~~')
     with open(config,'r') as f:
         config = yaml.load(f, Loader=Loader)
 
     if rank == 0:
-        print('~~~ INIT ~~~')
+        logging.info('~~~ INIT ~~~')
     manager = H5FlowManager(config, output_filename, input_filename=input_filename, start_position=start_position, end_position=end_position)
     manager.init()
     if rank == 0:
-        print('~~~~~~~~~~~~')
+        logging.info('~~~~~~~~~~~~')
 
     if rank == 0:
-        print('~~~ RUN ~~~')
+        logging.info('~~~ RUN ~~~')
     manager.run()
     if rank == 0:
-        print('~~~~~~~~~~~')
+        logging.info('~~~~~~~~~~~')
 
     if rank == 0:
-        print('~~~ FINISH ~~~')
+        logging.info('~~~ FINISH ~~~')
     manager.finish()
     if rank == 0:
-        print('~~~~~~~~~~~~~~')
+        logging.info('~~~~~~~~~~~~~~')
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--verbose','-v', action='store_true', help='''Increase verbosity''')
     parser.add_argument('--input_filename','-i', type=str, default=None, required=False, help='''input hdf5 file to loop over, optional if using a custom file generator''')
     parser.add_argument('--output_filename','-o', type=str, required=True)
     parser.add_argument('--config','-c', type=str, required=True, help='''yaml config file''')

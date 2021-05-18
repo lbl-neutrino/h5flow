@@ -22,6 +22,10 @@ class ExampleGenerator(H5FlowGenerator):
             self.end_position = self.default_iterations
         self.iteration = 0
 
+    def __len__(self):
+        # optional
+        return self.end_position
+
     def init(self):
         # create any new datasets (including references)
         self.data_manager.create_dset(self.dset_name, dtype=int)

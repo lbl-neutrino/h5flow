@@ -4,6 +4,7 @@ import shutil
 import os
 from mpi4py import MPI
 from tqdm import tqdm
+import logging
 
 from ..data import H5FlowDataManager
 from ..modules import get_class
@@ -64,14 +65,17 @@ class H5FlowManager(object):
             )
 
     def init(self):
+        logging.debug(f'init generator')
         self.generator.init()
         for stage in self.stages:
+            logging.debug(f'init stage {stage}')
             stage.init(self.generator.dset_name)
         self.comm.barrier()
 
     def run(self):
         loop_gen = tqdm(self.generator) if self.rank == 0 else self.generator
         for chunk in loop_gen:
+            logging.debug(f'{self.generator.dset_name} chunk: {chunk}')
             cache = dict()
             for stage in self.stages:
                 stage.update_cache(cache, self.generator.dset_name, chunk)
@@ -79,6 +83,11 @@ class H5FlowManager(object):
         self.comm.barrier()
 
     def finish(self):
+        self.generator.finish()
+        self.comm.barrier()
+        for stage in self.stages:
+            stage.finish(self.generator.dset_name)
+        self.comm.barrier()
         self.data_manager.close_file()
         self.comm.barrier()
 

@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 from mpi4py import MPI
+import logging
 
 class H5FlowDataManager(object):
     '''
@@ -214,6 +215,8 @@ class H5FlowDataManager(object):
             if new_size > curr_len:
                 dset.resize((new_size,))
             rv = spec
+        else:
+            raise TypeError(f'spec {spec} is not a valid type')
         return rv
 
     def write_data(self, dataset_name, spec, data):
@@ -260,6 +263,8 @@ class H5FlowDataManager(object):
             new_size = max([curr_len] + [spec.stop for spec in specs])
             dset.resize((new_size,))
             rv = spec
+        else:
+            raise TypeError(f'spec {spec} is not a valid type')
         return rv
 
     def write_ref(self, parent_dataset_name, child_dataset_name, spec, refs):

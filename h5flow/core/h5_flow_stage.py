@@ -90,6 +90,13 @@ class H5FlowStage(object):
         '''
         pass
 
+    def finish(self, source_name):
+        '''
+            Clean up any open files / etc, called once after run loop finishes
+
+        '''
+        pass
+
     def update_cache(self, cache, source_name, source_slice):
         '''
             Load and dereference "required" data associated with a given source

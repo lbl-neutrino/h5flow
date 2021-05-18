@@ -114,3 +114,10 @@ class H5FlowGenerator(object):
             :returns: ``<slice>`` into ``self.dset_name`` data
         '''
         raise NotImplementedError
+
+    def finish(self):
+        '''
+            Clean up any open files / etc, called once after run loop finishes
+
+        '''
+        pass
