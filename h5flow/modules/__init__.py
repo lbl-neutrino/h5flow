@@ -25,8 +25,18 @@ def get_class(classname):
     found_class = find_class(classname, './')
 
     if found_class is None:
-        # then search in subdirectory
+        # search for h5flow_modules directory
         found_class = find_class(classname, './h5flow_modules/')
+
+        # then recurse into h5flow_modules subdirectories
+        if found_class is None:
+            for parent, dirs, files in os.walk('./h5flow_modules/'):
+                for directory in dirs:
+                    found_class = find_class(classname, os.path.join(parent,directory))
+                    if found_class is not None:
+                        break
+                if found_class is not None:
+                        break
 
         if found_class is None:
             # then search in source
