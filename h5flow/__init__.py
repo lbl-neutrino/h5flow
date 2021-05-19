@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-import yaml
 import argparse
+import yaml
 import sys
 import logging
 from yaml import Loader
@@ -51,3 +51,4 @@ def main():
     parser.add_argument('--end_position','-e', type=int, default=None, help='''end position within source dset (for partial file processing)''')
     args = parser.parse_args()
     run(**vars(args))
+

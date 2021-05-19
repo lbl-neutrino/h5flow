@@ -68,26 +68,31 @@ class H5FlowManager(object):
         logging.debug(f'init generator')
         self.generator.init()
         for stage in self.stages:
-            logging.debug(f'init stage {stage}')
+            logging.debug(f'init stage {stage.name} source: {self.generator.dset_name}')
             stage.init(self.generator.dset_name)
         self.comm.barrier()
 
     def run(self):
         loop_gen = tqdm(self.generator) if self.rank == 0 else self.generator
         for chunk in loop_gen:
-            logging.debug(f'{self.generator.dset_name} chunk: {chunk}')
+            logging.debug(f'run on {self.generator.dset_name} chunk: {chunk}')
             cache = dict()
             for stage in self.stages:
                 stage.update_cache(cache, self.generator.dset_name, chunk)
+                logging.debug(f'run stage {stage.name} source: {self.generator.dset_name} chunk: {chunk} cache contains {len(cache)} objects')
                 stage.run(self.generator.dset_name, chunk, cache)
         self.comm.barrier()
 
     def finish(self):
+        logging.debug(f'finish generator')
         self.generator.finish()
         self.comm.barrier()
         for stage in self.stages:
+            logging.debug(f'finish stage {stage.name} source: {self.generator.dset_name}')
             stage.finish(self.generator.dset_name)
         self.comm.barrier()
+
+        logging.debug(f'close data manager')
         self.data_manager.close_file()
         self.comm.barrier()
 
