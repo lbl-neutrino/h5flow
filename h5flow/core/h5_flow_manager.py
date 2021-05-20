@@ -15,6 +15,8 @@ class H5FlowManager(object):
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
 
+        self.drop_list = config.get('flow').get('drop',list())
+
         # set up the data manager
         self.configure_data_manager(output_filename, config)
 
@@ -93,6 +95,8 @@ class H5FlowManager(object):
         self.comm.barrier()
 
         logging.debug(f'close data manager')
+        for drop in self.drop_list:
+            self.data_manager.delete(drop)
         self.data_manager.close_file()
         self.comm.barrier()
 

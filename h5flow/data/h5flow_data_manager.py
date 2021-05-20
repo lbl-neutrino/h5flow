@@ -63,6 +63,16 @@ class H5FlowDataManager(object):
             self._open_file()
         return self._fh
 
+    def delete(self, name):
+        '''
+            Delete object at ``name``
+
+            :param name: ``str`` path to dataset to be deleted
+
+        '''
+        if name in self.fh:
+            del self.fh[name]
+
     def dset_exists(self, dataset_name):
         '''
             Check if data object of ``dataset_name`` exists

@@ -72,11 +72,13 @@ the workflow is defined under the `flow` key::
     flow:
         source: <dataset to loop over, or generator name>
         stages: [<first sequential stage name>, <second sequential stage name>]
+        drop: [<dataset name, opt.>]
 
-First the `source` defines the loop source. By default, you may specify an
+The `source` defines the loop source dataset. By default, you may specify an
 existing dataset and an `H5FlowDatasetLoopGenerator` will be used. `stages`
-then defines the names and sequential order of the stages should be executed on
-each data chunk provided by the generator.
+defines the names and sequential order of the analysis stages should be executed
+on each data chunk provided by the generator. Optionally, `drop` defines a list
+of datasets to delete from the output file after the run loop completes.
 
 ## generators
 
