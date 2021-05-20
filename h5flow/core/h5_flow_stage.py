@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 from mpi4py import MPI
+import logging
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()

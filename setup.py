@@ -17,6 +17,7 @@ setuptools.setup(name='h5flow',
     packages=setuptools.find_packages(where='.'),
     python_requires='>=3.7',
     entry_points={'console_scripts': ['h5flow=h5flow:main']},
+    scripts=['scripts/run_h5flow.py'],
     install_requires=[
       'numpy',
       'h5py>=3',

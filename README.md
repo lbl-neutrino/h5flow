@@ -38,6 +38,11 @@ To run a parallelized workflow::
     mpiexec h5flow -o <output file>.h5 -c <config file>.yaml\
         -i <input file, opt.> -s <start position, opt.> -e <end position, opt.>
 
+Alternative entry points::
+
+    python -m h5flow <args>
+    run_h5flow.py <args>
+
 # h5flow hdf5 structure
 
 `h5flow` requires a specific, table-like hdf5 structure with references
