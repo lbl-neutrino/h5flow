@@ -69,7 +69,7 @@ class H5FlowGenerator(object):
         be ``N`` times larger).
 
     '''
-    EMPTY = slice(0,0)
+    EMPTY = slice(-1,-1)
     class_version = '0.0.0'
 
     def __init__(self, classname, dset_name, data_manager, input_filename=None, start_position=None, end_position=None, **params):
@@ -93,7 +93,7 @@ class H5FlowGenerator(object):
 
         # check if all are empty slices
         slices = self.comm.allgather(next_slice)
-        if all([sl.stop - sl.start == 0 for sl in slices]):
+        if all([sl == H5FlowGenerator.EMPTY for sl in slices]):
             raise StopIteration
 
         return next_slice
