@@ -60,7 +60,7 @@ class H5FlowManager(object):
 
     def default_generator_config(self, source_name):
         if self.rank == 0:
-            print(f'Could not find generator description, using default dataset loop behavior on {source_name}')
+            logging.warning(f'Could not find generator description, using default loop behavior on {source_name} dataset')
         return dict(
             classname='H5FlowDatasetLoopGenerator',
             dset_name=source_name
