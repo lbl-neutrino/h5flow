@@ -14,6 +14,11 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
     rank = MPI.COMM_WORLD.Get_rank()
 
     if rank == 0:
+        logging.info(f'output file: {output_filename}')
+        logging.info(f'input file: {input_filename}')
+        logging.info(f'start: {start_position}')
+        logging.info(f'end: {end_position}')
+        logging.info(f'verbose: {verbose}')
         logging.info('~~~ CONFIG DUMP ~~~')
         with open(config,'r') as f:
             for line in f.readlines():
