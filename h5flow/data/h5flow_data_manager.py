@@ -194,7 +194,7 @@ class H5FlowDataManager(object):
                 self.fh.create_group(f'{parent_dataset_name}/ref')
                 self.fh[f'{parent_dataset_name}/ref'].attrs['parent'] = self.fh[f'{parent_dataset_name}/data'].ref
             self.fh.create_dataset(path, (0,), maxshape=(None,),
-                dtype=h5py.regionref_dtype)
+                dtype=np.dtype([('valid','u1'), ('ref',h5py.regionref_dtype)]))
             self.fh[path].attrs['child'] = self.fh[f'{child_dataset_name}/data'].ref
 
     def reserve_data(self, dataset_name, spec):
@@ -243,6 +243,45 @@ class H5FlowDataManager(object):
         dset = self.get_dset(dataset_name)
         dset[spec] = data
 
+    @staticmethod
+    def merge_region_specs(*specs):
+        '''
+            Join a region specification into one of:
+             - an integer
+             - a slice
+             - a list/array of integers
+
+            Follows the ``numpy.r_[...]`` behavior except prunes for unique values
+            and sorts. If indices can be simplified into a ``slice`` selection,
+            this method returns a slice. E.g.::
+
+                merge_region_specs(slice(0,10), slice(10,20)) # returns slice(0,20,1)
+                merge_region_specs(0,[1,2],3) # returns slice(0,4,1)
+                merge_region_specs(slice(0,4,2),[4,6],8) # returns slice(0,10,2)
+
+            :param specs: a collection of ``int``, ``slice``, or iterable of ``int`` to join
+
+        '''
+        if len(specs) > 1:
+            idcs = np.sort(np.unique(np.r_[specs].astype(int)))
+        elif len(specs):
+            idcs = np.sort(np.unique(np.r_[specs[0]].astype(int)))
+        else:
+            return slice(0,0,1)
+
+        if len(idcs) <= 2:
+            # only refers to a few positions
+            return idcs
+        elif len(idcs) == 0:
+            # refers to no region => default to empty slice behavior
+            return slice(0,0,1)
+
+        step = np.diff(idcs)
+        if np.all(np.abs(step) == step[0]):
+            # can be reduced to a simple slice
+            return slice(idcs[0],idcs[-1]+step[0],step[0])
+        return idcs
+
     def reserve_ref(self, parent_dataset_name, child_dataset_name, spec):
         '''
             Coordinate access into ``parent_dataset_name -> child_dataset_name``
@@ -250,7 +289,7 @@ class H5FlowDataManager(object):
             ``spec`` a different access mode will be performed:
 
                 - ``int``: access in append mode - will grant access to ``spec`` rows at the end of the dataset
-                - ``slice``: access a specific section - will resize dataset if section does not exist
+                - ``slice`` or iterable of ``int``: access a specific section - will resize dataset if section does not exist
 
             :param parent_dataset_name: ``str`` path to dataset, e.g. ``stage0/obj0``
 
@@ -263,18 +302,21 @@ class H5FlowDataManager(object):
         '''
         dset = self.get_ref(parent_dataset_name, child_dataset_name)
         curr_len = len(dset)
-        specs = self.comm.allgather(spec)
+        all_specs = self.comm.allgather(spec)
         if isinstance(spec, int):
             # create a new chunk at the end of the dataset
-            dset.resize((curr_len + sum(specs),))
-            rv = slice(curr_len + sum(specs[:self.rank]), curr_len + sum(specs[:self.rank+1]))
-        elif isinstance(spec, slice):
-            # maybe create up to a specific chunk of the dataset
-            new_size = max([curr_len] + [spec.stop for spec in specs])
-            dset.resize((new_size,))
-            rv = spec
+            dset.resize((curr_len + sum(all_specs),))
+            rv = slice(curr_len + sum(all_specs[:self.rank]), curr_len + sum(all_specs[:self.rank+1]))
         else:
-            raise TypeError(f'spec {spec} is not a valid type')
+            try:
+                # maybe create up to a specific chunk of the dataset
+                all_spec = self.merge_region_specs(*all_specs)
+                new_size = np.max(np.r_[all_spec]+1)
+                if new_size > curr_len:
+                    dset.resize((new_size,))
+                rv = spec
+            except TypeError:
+                raise TypeError(f'spec {spec} is not a valid specification')
         return rv
 
     def write_ref(self, parent_dataset_name, child_dataset_name, spec, refs):
@@ -297,13 +339,16 @@ class H5FlowDataManager(object):
         '''
         self.close_file()
         gather_refs = self.comm.gather(refs, root=0)
-        specs = self.comm.gather(spec, root=0)
+        gather_specs = self.comm.gather(spec, root=0)
         if self.rank == 0:
             self._open_file(mpi=False)
             dset = self.get_ref(parent_dataset_name, child_dataset_name)
             child_dset = self.get_dset(child_dataset_name)
-            for idcs,spec in zip(gather_refs,specs):
-                dset[spec] = np.array([child_dset.regionref[sel] for sel in idcs], dtype=h5py.regionref_dtype)
+            for ref,spec in zip(gather_refs,gather_specs):
+                clean_ref = [r if isinstance(r,slice) or isinstance(r,int) or isinstance(r,np.integer) \
+                    else self.merge_region_specs(*r) for r in ref]
+                valid = [isinstance(r,int) or isinstance(r,np.integer) or (isinstance(r,slice) and r.start != r.stop) or (not isinstance(r,slice) and len(r) > 0) for r in clean_ref]
+                dset[spec] = np.array([(v, child_dset.regionref[r]) for v,r in zip(valid,clean_ref)], dtype=dset.dtype)
             self.close_file()
             self.comm.barrier()
         else:

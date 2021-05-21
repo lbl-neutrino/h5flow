@@ -118,5 +118,5 @@ class H5FlowStage(object):
         for linked_name in self.requires:
             if linked_name not in cache:
                 linked_dset = self.data_manager.get_dset(linked_name)
-                cache[linked_name] = [linked_dset[ref] for ref in self.data_manager.get_ref(source_name, linked_name)[source_slice]]
+                cache[linked_name] = [linked_dset[ref['ref']] if ref['valid'] else np.empty((0,), dtype=linked_dset.dtype) for ref in self.data_manager.get_ref(source_name, linked_name)[source_slice]]
 
