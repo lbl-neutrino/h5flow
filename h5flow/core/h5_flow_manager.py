@@ -5,6 +5,8 @@ import os
 from mpi4py import MPI
 from tqdm import tqdm
 import logging
+import subprocess
+import time
 
 from ..data import H5FlowDataManager
 from ..modules import get_class
@@ -99,5 +101,12 @@ class H5FlowManager(object):
             self.data_manager.delete(drop)
         self.data_manager.close_file()
         self.comm.barrier()
+        if len(self.drop_list) and self.rank == 0:
+            # repacks the hdf5 file to recover space from dropped datasets
+            tempfile = os.path.join(os.path.basename(self.data_manager.filepath), '.temp-{}.h5'.format(time.time()))
+            subprocess.run(['h5repack', self.data_manager.filepath, tempfile])
+            os.replace(tempfile, self.data_manager.filepath)
+        self.comm.barrier()
+
 
 
