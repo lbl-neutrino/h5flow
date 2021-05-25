@@ -23,6 +23,7 @@ class H5FlowDataManager(object):
             ...
 
     '''
+
     def __init__(self, filepath):
         self.filepath = filepath
         self._fh = None
@@ -95,7 +96,8 @@ class H5FlowDataManager(object):
             :returns: ``True`` if references exists
 
         '''
-        return f'{parent_dataset_name}/ref/{child_dataset_name}' in self.fh
+        return f'{parent_dataset_name}/ref/{child_dataset_name}/ref' in self.fh \
+            and f'{parent_dataset_name}/ref/{child_dataset_name}/ref_valid' in self.fh
 
     def attr_exists(self, name, key):
         '''
@@ -143,10 +145,24 @@ class H5FlowDataManager(object):
 
             :param child_dataset_name: ``str`` path to child dataset, e.g. ``stage0/obj1``
 
-            :returns: ``h5py.Dataset``, e.g. ``stage0/obj0/ref/stage0/obj1``
+            :returns: ``h5py.Dataset``, e.g. ``stage0/obj0/ref/stage0/obj1/ref``
 
         '''
-        dset = self.fh[f'{parent_dataset_name}/ref/{child_dataset_name}']
+        dset = self.fh[f'{parent_dataset_name}/ref/{child_dataset_name}/ref']
+        return dset
+
+    def get_ref_valid(self, parent_dataset_name, child_dataset_name):
+        '''
+            Get refrences of ``parent_dataset_name -> child_dataset_name``
+
+            :param parent_dataset_name: ``str`` path to parent dataset, e.g. ``stage0/obj0``
+
+            :param child_dataset_name: ``str`` path to child dataset, e.g. ``stage0/obj1``
+
+            :returns: ``h5py.Dataset``, e.g. ``stage0/obj0/ref/stage0/obj1/ref_valid``
+
+        '''
+        dset = self.fh[f'{parent_dataset_name}/ref/{child_dataset_name}/ref_valid']
         return dset
 
     def set_attrs(self, name, **attrs):
@@ -188,14 +204,17 @@ class H5FlowDataManager(object):
             :param child_dataset_name: ``str`` path to child dataset, e.g. ``stage0/obj1``
 
         '''
-        path = f'{parent_dataset_name}/ref/{child_dataset_name}'
+        path = f'{parent_dataset_name}/ref/{child_dataset_name}/ref'
         if path not in self.fh:
             if f'{parent_dataset_name}/ref' not in self.fh:
                 self.fh.create_group(f'{parent_dataset_name}/ref')
                 self.fh[f'{parent_dataset_name}/ref'].attrs['parent'] = self.fh[f'{parent_dataset_name}/data'].ref
             self.fh.create_dataset(path, (0,), maxshape=(None,),
-                dtype=np.dtype([('valid','u1'), ('ref',h5py.regionref_dtype)]))
+                dtype=h5py.regionref_dtype)
+            self.fh.create_dataset(path+'_valid', (0,), maxshape=(None,),
+                dtype='u1')
             self.fh[path].attrs['child'] = self.fh[f'{child_dataset_name}/data'].ref
+            self.fh[path+'_valid'].attrs['child'] = self.fh[f'{child_dataset_name}/data'].ref
 
     def reserve_data(self, dataset_name, spec):
         '''
@@ -203,7 +222,7 @@ class H5FlowDataManager(object):
             ``spec`` a different access mode will be performed:
 
                 - ``int``: access in append mode - will grant access to ``spec`` rows at the end of the dataset
-                - ``slice``: access a specific section of the dataset - will resize dataset if section does not exist
+                - ``slice`` or list of ``int`` or list of ``slice``: access a specific section(s) of the dataset - will resize dataset if section does not exist
 
             :param dataset_name: ``str`` path to dataset, e.g. ``stage0/obj0``
 
@@ -247,9 +266,8 @@ class H5FlowDataManager(object):
     def merge_region_specs(*specs):
         '''
             Join a region specification into one of:
-             - an integer
              - a slice
-             - a list/array of integers
+             - an array of integers
 
             Follows the ``numpy.r_[...]`` behavior except prunes for unique values
             and sorts. If indices can be simplified into a ``slice`` selection,
@@ -257,24 +275,36 @@ class H5FlowDataManager(object):
 
                 merge_region_specs(slice(0,10), slice(10,20)) # returns slice(0,20,1)
                 merge_region_specs(0,[1,2],3) # returns slice(0,4,1)
-                merge_region_specs(slice(0,4,2),[4,6],8) # returns slice(0,10,2)
+                merge_region_specs(slice(0,4,2),[2,4,6],8,2) # returns slice(0,10,2)
+                merge_region_specs(slice(0,5),10) # returns np.array([0,1,2,3,4,10])
 
-            :param specs: a collection of ``int``, ``slice``, or iterable of ``int`` to join
+            Note that empty iterables or empty slices produce empty slices::
+
+                merge_region_specs([], slice(0,0,1)) # returns slice(0,0,1)
+
+            :param specs: a collection of ``int``, ``slice``, iterable of ``int``, or iterable of ``slice`` to join
 
         '''
-        if len(specs) > 1:
-            idcs = np.sort(np.unique(np.r_[specs].astype(int)))
-        elif len(specs):
-            idcs = np.sort(np.unique(np.r_[specs[0]].astype(int)))
+        flat_specs = []
+        for s in specs:
+            if isinstance(s,np.integer) or isinstance(s,int) or isinstance(s,slice):
+                flat_specs.append(s)
+            else:
+                flat_specs.extend(s)
+
+        if len(flat_specs) > 1:
+            idcs = np.sort(np.unique(np.r_[(*flat_specs,)].astype(int)))
+        elif len(flat_specs):
+            idcs = np.sort(np.unique(np.r_[flat_specs[0]].astype(int)))
         else:
             return slice(0,0,1)
 
-        if len(idcs) <= 2:
-            # only refers to a few positions
-            return idcs
-        elif len(idcs) == 0:
+        if len(idcs) == 0:
             # refers to no region => default to empty slice behavior
             return slice(0,0,1)
+        elif len(idcs) <= 2:
+            # only refers to a few positions
+            return idcs
 
         step = np.diff(idcs)
         if np.all(np.abs(step) == step[0]):
@@ -289,7 +319,9 @@ class H5FlowDataManager(object):
             ``spec`` a different access mode will be performed:
 
                 - ``int``: access in append mode - will grant access to ``spec`` rows at the end of the dataset
-                - ``slice`` or iterable of ``int``: access a specific section - will resize dataset if section does not exist
+                - ``slice`` or iterable of ``int`` or iterable of ``slice``: access a specific section - will resize dataset if section does not exist
+
+            Note: access pattern (append or selection) must be the same in all processes
 
             :param parent_dataset_name: ``str`` path to dataset, e.g. ``stage0/obj0``
 
@@ -301,19 +333,26 @@ class H5FlowDataManager(object):
 
         '''
         dset = self.get_ref(parent_dataset_name, child_dataset_name)
+        dset_valid = self.get_ref_valid(parent_dataset_name, child_dataset_name)
         curr_len = len(dset)
-        all_specs = self.comm.allgather(spec)
+        if isinstance(spec, slice):
+            all_specs = self.comm.allgather([spec])
+        else:
+            all_specs = self.comm.allgather(spec)
         if isinstance(spec, int):
             # create a new chunk at the end of the dataset
             dset.resize((curr_len + sum(all_specs),))
+            dset_valid.resize((curr_len + sum(all_specs),))
             rv = slice(curr_len + sum(all_specs[:self.rank]), curr_len + sum(all_specs[:self.rank+1]))
         else:
             try:
                 # maybe create up to a specific chunk of the dataset
-                all_spec = self.merge_region_specs(*all_specs)
-                new_size = np.max(np.r_[all_spec]+1)
-                if new_size > curr_len:
-                    dset.resize((new_size,))
+                idcs = np.r_[self.merge_region_specs(*[s for ss in all_specs for s in ss])]+1
+                if len(idcs):
+                    new_size = np.max(idcs)
+                    if new_size > curr_len:
+                        dset.resize((new_size,))
+                        dset_valid.resize((new_size,))
                 rv = spec
             except TypeError:
                 raise TypeError(f'spec {spec} is not a valid specification')
@@ -343,12 +382,14 @@ class H5FlowDataManager(object):
         if self.rank == 0:
             self._open_file(mpi=False)
             dset = self.get_ref(parent_dataset_name, child_dataset_name)
+            dset_valid = self.get_ref_valid(parent_dataset_name, child_dataset_name)
             child_dset = self.get_dset(child_dataset_name)
             for ref,spec in zip(gather_refs,gather_specs):
                 clean_ref = [r if isinstance(r,slice) or isinstance(r,int) or isinstance(r,np.integer) \
                     else self.merge_region_specs(*r) for r in ref]
                 valid = [isinstance(r,int) or isinstance(r,np.integer) or (isinstance(r,slice) and r.start != r.stop) or (not isinstance(r,slice) and len(r) > 0) for r in clean_ref]
-                dset[spec] = np.array([(v, child_dset.regionref[r]) for v,r in zip(valid,clean_ref)], dtype=dset.dtype)
+                dset[spec] = np.array([child_dset.regionref[r] for r in clean_ref], dtype=h5py.regionref_dtype)
+                dset_valid[spec] = np.array(valid, dtype=bool)
             self.close_file()
             self.comm.barrier()
         else:

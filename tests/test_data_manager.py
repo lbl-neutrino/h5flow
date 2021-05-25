@@ -2,6 +2,7 @@ import pytest
 import h5py
 import os
 from mpi4py import MPI
+import numpy as np
 
 from h5flow.data import H5FlowDataManager
 
@@ -66,6 +67,7 @@ def test_create_ref(datamanager, empty_testref):
     assert dm.get_ref(*empty_testref).dtype == h5py.regionref_dtype
     # check that ref dataset is still empty
     assert len(dm.get_ref(*empty_testref)) == 0
+    assert len(dm.get_ref_valid(*empty_testref)) == 0
 
 @pytest.fixture
 def full_testdset(datamanager, empty_testdset):
@@ -97,6 +99,7 @@ def test_write_ref(datamanager, full_testdset, full_testref):
     assert dm.fh[dm.get_ref(*full_testref[0]).attrs['child']] == dm.get_dset(full_testdset[0])
     ref = dm.get_ref(*full_testref[0])[full_testref[1]]
     # check that first of process' refs point to the correct chunk of the dataset
+    assert all(dm.get_ref_valid(*full_testref[0])[full_testref[1]])
     assert all(dm.get_dset(full_testdset[0])[ref[0]] == dm.get_dset(full_testdset[0])[full_testdset[1]])
 
 

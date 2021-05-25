@@ -56,13 +56,23 @@ Datasets are expected to be single-dimesional structured arrays. References
 between datasets are expected to be stored alongside the parent dataset::
 
     /<dataset0_path>/data
-    /<dataset0_path>/ref/<dataset1_path> # references from dataset0 -> dataset1
-    /<dataset0_path>/ref/<dataset2_path> # references from dataset0 -> dataset2
+    /<dataset0_path>/ref/<dataset1_path>/ref # references from dataset0 -> dataset1
+    /<dataset0_path>/ref/<dataset2_path>/ref # references from dataset0 -> dataset2
     /<dataset1_path>/data
-    /<dataset1_path>/ref/<dataset0_path> # references from dataset1 -> dataset0
+    /<dataset1_path>/ref/<dataset0_path>/ref # references from dataset1 -> dataset0
     ...
 
 with the same dimensions as the parent dataset.
+
+To accomidate null references (which are not well supported by h5py at this time),
+there is a companion boolean dataset `ref_valid` at the corresponding position
+as the `ref` dataset that indicates if the reference is a valid reference. E.g.::
+
+    /<dataset0_path>/data
+    /<dataset0_path>/ref/<dataset1_path>/ref # references from dataset0 -> dataset1
+    /<dataset0_path>/ref/<dataset1_path>/ref_valid # indicator for valid dataset0 -> dataset1 reference
+    /<dataset0_path>/ref/<dataset2_path>/ref # references from dataset0 -> dataset2
+    /<dataset0_path>/ref/<dataset2_path>/ref_valid # indicator for valid dataset0 -> dataset2 reference
 
 # h5flow workflow
 

@@ -106,6 +106,8 @@ class H5FlowStage(object):
             and loads data from ``source_name -> required_name`` references.
             Called automatically once per loop, just before calling ``run``.
 
+            Only loads data to the cache if it is not already present
+
             :param cache: ``dict`` cache to update
 
             :param source_name: a path to the source dataset group
@@ -118,5 +120,7 @@ class H5FlowStage(object):
         for linked_name in self.requires:
             if linked_name not in cache:
                 linked_dset = self.data_manager.get_dset(linked_name)
-                cache[linked_name] = [linked_dset[ref['ref']] if ref['valid'] else np.empty((0,), dtype=linked_dset.dtype) for ref in self.data_manager.get_ref(source_name, linked_name)[source_slice]]
+                refs = self.data_manager.get_ref(source_name, linked_name)[source_slice]
+                refs_valid = self.data_manager.get_ref_valid(source_name, linked_name)[source_slice]
+                cache[linked_name] = [linked_dset[ref] if valid else np.empty((0,), dtype=linked_dset.dtype) for ref,valid in zip(refs, refs_valid)]
 

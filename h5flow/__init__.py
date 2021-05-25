@@ -8,8 +8,9 @@ from mpi4py import MPI
 
 from .core import H5FlowManager
 
-def run(config, output_filename, input_filename=None, start_position=None, end_position=None, verbose=False):
-    logging.basicConfig(format='%(asctime)s (p%(process)d) %(module)s.%(funcName)s[l%(lineno)d] %(levelname)s : %(message)s', level=logging.DEBUG if verbose else logging.WARNING)
+def run(config, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0):
+    log_level = { 0:'WARNING', 1:'INFO', 2:'DEBUG' }[verbose]
+    logging.basicConfig(format='%(asctime)s (p%(process)d) %(module)s.%(funcName)s[l%(lineno)d] %(levelname)s : %(message)s', level=log_level)
 
     rank = MPI.COMM_WORLD.Get_rank()
 
@@ -48,7 +49,7 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--verbose','-v', action='store_true', help='''Increase verbosity''')
+    parser.add_argument('--verbose','-v', action='count', default=0, help='''Increase verbosity, can specify more for more verbose (e.g. -vv)''')
     parser.add_argument('--input_filename','-i', type=str, default=None, required=False, help='''input hdf5 file to loop over, optional if using a custom file generator''')
     parser.add_argument('--output_filename','-o', type=str, required=True)
     parser.add_argument('--config','-c', type=str, required=True, help='''yaml config file''')
