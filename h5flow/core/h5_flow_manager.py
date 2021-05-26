@@ -103,7 +103,7 @@ class H5FlowManager(object):
         self.comm.barrier()
         if len(self.drop_list) and self.rank == 0:
             # repacks the hdf5 file to recover space from dropped datasets
-            tempfile = os.path.join(os.path.basename(self.data_manager.filepath), '.temp-{}.h5'.format(time.time()))
+            tempfile = os.path.join(os.path.dirname(self.data_manager.filepath), '.temp-{}.h5'.format(time.time()))
             subprocess.run(['h5repack', self.data_manager.filepath, tempfile])
             os.replace(tempfile, self.data_manager.filepath)
         self.comm.barrier()
