@@ -9,10 +9,10 @@ from mpi4py import MPI
 from .core import H5FlowManager
 
 def run(config, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0):
-    log_level = { 0:'WARNING', 1:'INFO', 2:'DEBUG' }[verbose]
-    logging.basicConfig(format='%(asctime)s (p%(process)d) %(module)s.%(funcName)s[l%(lineno)d] %(levelname)s : %(message)s', level=log_level)
-
     rank = MPI.COMM_WORLD.Get_rank()
+
+    log_level = { 0:'WARNING', 1:'INFO', 2:'DEBUG' }[verbose]
+    logging.basicConfig(format=f'%(asctime)s (r{rank}) %(module)s.%(funcName)s[l%(lineno)d] %(levelname)s : %(message)s', level=log_level)
 
     if rank == 0:
         logging.info(f'output file: {output_filename}')
