@@ -377,20 +377,27 @@ class H5FlowDataManager(object):
 
         '''
         self.close_file()
-        gather_refs = self.comm.gather(refs, root=0)
-        gather_specs = self.comm.gather(spec, root=0)
+        self.comm.barrier()
+
+        clean_ref = [r if isinstance(r,slice) or isinstance(r,int) or isinstance(r,np.integer) \
+            else self.merge_region_specs(*r) for r in refs]
+        valid = np.array([isinstance(r,int) or isinstance(r,np.integer) or (isinstance(r,slice) and r.start != r.stop) or (not isinstance(r,slice) and len(r) > 0) for r in clean_ref], dtype=bool)
+
         if self.rank == 0:
             self._open_file(mpi=False)
             dset = self.get_ref(parent_dataset_name, child_dataset_name)
             dset_valid = self.get_ref_valid(parent_dataset_name, child_dataset_name)
             child_dset = self.get_dset(child_dataset_name)
-            for ref,spec in zip(gather_refs,gather_specs):
-                clean_ref = [r if isinstance(r,slice) or isinstance(r,int) or isinstance(r,np.integer) \
-                    else self.merge_region_specs(*r) for r in ref]
-                valid = [isinstance(r,int) or isinstance(r,np.integer) or (isinstance(r,slice) and r.start != r.stop) or (not isinstance(r,slice) and len(r) > 0) for r in clean_ref]
+
+            for r in range(self.size):
+                if r != self.rank:
+                    spec, clean_ref, valid = self.comm.recv(source=r)
+
                 dset[spec] = np.array([child_dset.regionref[r] for r in clean_ref], dtype=h5py.regionref_dtype)
-                dset_valid[spec] = np.array(valid, dtype=bool)
+                dset_valid[spec] = valid
+
             self.close_file()
             self.comm.barrier()
         else:
+            self.comm.send((spec, clean_ref, valid), dest=0)
             self.comm.barrier()
