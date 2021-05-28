@@ -1,6 +1,7 @@
 import os
 import shutil
 import logging
+import h5py
 
 from h5flow.core import H5FlowGenerator
 from h5flow.data import H5FlowDataManager
@@ -73,14 +74,15 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
 
         if self.chunk_size == 'auto':
             # in auto mode, use the default chunk size in the hdf5 file
-            sel = slice(self.start_position, self.end_position)
-            self.slices = [sl[0] for sl in dset.iter_chunks(sel=sel)][self.rank::self.size]
-        else:
-            # in manual mode, each process grabs `chunk_size` chunks from the file
-            start = self.rank * self.chunk_size + self.start_position
-            end = self.end_position
-            r = range(start, end, self.size * self.chunk_size)
-            self.slices = [slice(i, min(i+self.chunk_size, end)) for i in r]
+            self.chunk_size = dset.chunks[0]
+            # sel = slice(self.start_position, self.end_position)
+            # self.slices = [sl[0] for sl in dset.iter_chunks(sel=sel)][self.rank::self.size]
+
+        # in manual mode, each process grabs `chunk_size` chunks from the file
+        start = self.rank * self.chunk_size + self.start_position
+        end = self.end_position
+        r = range(start, end, self.size * self.chunk_size)
+        self.slices = [slice(i, min(i+self.chunk_size, end)) for i in r]
 
     def copy(self, f0, f1, block=True):
         # copies the whole file for the time being

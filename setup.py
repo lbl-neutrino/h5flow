@@ -20,7 +20,7 @@ setuptools.setup(name='h5flow',
     scripts=['scripts/run_h5flow.py'],
     install_requires=[
       'numpy',
-      'h5py>=3',
+      'h5py~=2.10',
       'mpi4py',
       'PyYAML',
       'tqdm',
