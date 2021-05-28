@@ -1,4 +1,6 @@
 import h5py
+import h5py.h5s as h5s
+import h5py.h5r as h5r
 import numpy as np
 from mpi4py import MPI
 import logging
@@ -267,9 +269,9 @@ class H5FlowDataManager(object):
         '''
             Join a region specification into one of:
              - a slice
-             - an array of integers
+             - an array of integers (shape: (N, 1))
 
-            Follows the ``numpy.r_[...]`` behavior except prunes for unique values
+            Follows the ``numpy.c_[...]`` behavior except prunes for unique values
             and sorts. If indices can be simplified into a ``slice`` selection,
             this method returns a slice. E.g.::
 
@@ -297,20 +299,42 @@ class H5FlowDataManager(object):
         elif len(flat_specs):
             idcs = np.sort(np.unique(np.r_[flat_specs[0]].astype(int)))
         else:
-            return slice(0,0,1)
+            return np.empty((0,1), dtype=int)
 
         if len(idcs) == 0:
             # refers to no region => default to empty slice behavior
-            return slice(0,0,1)
+            return np.empty((0,1), dtype=int)
         elif len(idcs) <= 2:
-            # only refers to a few positions
-            return idcs
+            # only a few => return array
+            return idcs[:,np.newaxis]
 
-        step = np.diff(idcs)
+        step = np.diff(idcs, axis=0)
         if np.all(np.abs(step) == step[0]):
             # can be reduced to a simple slice
             return slice(idcs[0],idcs[-1]+step[0],step[0])
-        return idcs
+        return idcs[:,np.newaxis]
+
+    @staticmethod
+    def create_ref_array(dset, spec):
+        array = np.zeros(len(spec), dtype=h5py.regionref_dtype)
+        space = h5s.create_simple(dset.id.shape)
+        for i in range(len(spec)):
+            item = spec[i]
+            if isinstance(item, slice):
+                start = item.start if item.start is not None else 0
+                stride = item.step if item.step is not None else 1
+                count = (item.stop-start)//stride if item.stop is not None else (dset.shape[0]-start)//stride
+                if count == 0:
+                    continue
+                space.select_hyperslab((start,), (count,), (stride,))
+            elif isinstance(item,int) or isinstance(item,np.integer):
+                space.select_elements([[item]])
+            elif len(item) == 0:
+                continue
+            else:
+                space.select_elements(item)
+            array[i] = h5r.create(dset.id, b'.', h5r.DATASET_REGION, space)
+        return array
 
     def reserve_ref(self, parent_dataset_name, child_dataset_name, spec):
         '''
@@ -393,7 +417,7 @@ class H5FlowDataManager(object):
                 if r != self.rank:
                     spec, clean_ref, valid = self.comm.recv(source=r)
 
-                dset[spec] = np.array([child_dset.regionref[r] for r in clean_ref], dtype=h5py.regionref_dtype)
+                dset[spec] = self.create_ref_array(child_dset, clean_ref)# np.array([child_dset.regionref[r] for r in clean_ref], dtype=h5py.regionref_dtype)
                 dset_valid[spec] = valid
 
             self.close_file()
