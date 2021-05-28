@@ -316,7 +316,7 @@ class H5FlowDataManager(object):
 
     @staticmethod
     def create_ref_array(dset, spec):
-        array = np.zeros(len(spec), dtype=h5py.regionref_dtype)
+        array = np.empty((len(spec),), dtype=h5py.regionref_dtype)
         space = h5s.create_simple(dset.id.shape)
         for i in range(len(spec)):
             item = spec[i]
@@ -328,7 +328,7 @@ class H5FlowDataManager(object):
                     continue
                 space.select_hyperslab((start,), (count,), (stride,))
             elif isinstance(item,int) or isinstance(item,np.integer):
-                space.select_elements([[item]])
+                space.select_hyperslab((item,), (1,))
             elif len(item) == 0:
                 continue
             else:
