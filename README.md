@@ -9,13 +9,14 @@ multi-process environment.
 
 To setup a fresh conda environment::
 
-    conda create --name <env> --file requirements.txt
+    conda create --name <env> --file environment.yml
+    conda activate <env>
     pip install .
 
 To update an existing environment::
 
+    conda update --name <env> --file environment.yml
     conda activate <env>
-    conda install --file requirements.txt
     pip install .
 
 To run tests::
