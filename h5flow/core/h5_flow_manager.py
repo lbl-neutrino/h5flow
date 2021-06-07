@@ -8,6 +8,8 @@ import logging
 import subprocess
 import time
 
+from ..data.lib import dereference
+
 from ..data import H5FlowDataManager
 from ..modules import get_class
 
@@ -78,11 +80,12 @@ class H5FlowManager(object):
 
     def run(self):
         loop_gen = tqdm(self.generator) if self.rank == 0 else self.generator
+        stage_requirements = [[r for stage in self.stages[:i+1] for r in stage.requires] for i in range(len(self.stages))]
         for chunk in loop_gen:
             logging.debug(f'run on {self.generator.dset_name} chunk: {chunk}')
             cache = dict()
-            for stage in self.stages:
-                stage.update_cache(cache, self.generator.dset_name, chunk)
+            for i, (stage, requirements) in enumerate(zip(self.stages, stage_requirements)):
+                self.update_cache(cache, self.generator.dset_name, chunk, requirements)
                 logging.debug(f'run stage {stage.name} source: {self.generator.dset_name} chunk: {chunk} cache contains {len(cache)} objects')
                 stage.run(self.generator.dset_name, chunk, cache)
         self.comm.barrier()
@@ -108,5 +111,34 @@ class H5FlowManager(object):
             os.replace(tempfile, self.data_manager.filepath)
         self.comm.barrier()
 
+    def update_cache(self, cache, source_name, source_slice, requirements):
+        '''
+            Load and dereference "required" data associated with a given source
+            - first loads the data subset of ``source_name`` specified by the
+            ``source_slice``. Then loops over the datasets in ``self.requires``
+            and loads data from ``source_name -> required_name`` references.
+            Called automatically once per loop, just before calling ``run``.
 
+            Only loads data to the cache if it is not already present
 
+            :param cache: ``dict`` cache to update
+
+            :param source_name: a path to the source dataset group
+
+            :param source_slice: a 1D slice into the source dataset
+
+        '''
+        for name in list(cache.keys()).copy():
+            if name not in requirements and name != source_name:
+                del cache[name]
+
+        if source_name not in cache:
+            cache[source_name] = self.data_manager.get_dset(source_name)[source_slice]
+
+        for linked_name in requirements:
+            if linked_name not in cache:
+                linked_dset = self.data_manager.get_dset(linked_name)
+                refs, ref_dir = self.data_manager.get_ref(source_name, linked_name)
+                regions = self.data_manager.get_ref_region(source_name, linked_name)
+
+                cache[linked_name] = dereference(linked_dset, refs, regions, sel=source_slice, ref_direction=ref_dir, as_masked=True)

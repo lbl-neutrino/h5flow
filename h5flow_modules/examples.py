@@ -73,7 +73,6 @@ class ExampleStage(H5FlowStage):
         # then set up any new datasets that will be added (including references)
         dtype = self.data_manager.get_dset(source_name).dtype
         self.data_manager.create_dset(self.output_dset, dtype=dtype)
-        self.data_manager.create_ref(self.output_dset, source_name)
         self.data_manager.create_ref(source_name, self.output_dset)
 
     def run(self, source_name, source_slice, cache):
@@ -90,15 +89,9 @@ class ExampleStage(H5FlowStage):
         self.data_manager.write_data(self.output_dset, new_slice, data)
 
         # To add references to the output file:
-        #  1. reserve the same source data region in the source reference dataset
-        self.data_manager.reserve_ref(source_name, self.output_dset, source_slice)
-        #  2. write 1:1 old -> new references
-        ref = range(new_slice.start, new_slice.stop)
-        self.data_manager.write_ref(source_name, self.output_dset, source_slice, ref)
-
-        # To add bi-directional references to the output file:
-        #  1. reserve the same data region in the output reference dataset
-        self.data_manager.reserve_ref(self.output_dset, source_name, new_slice)
-        #  2. write 1:1 new -> old references
-        ref = range(source_slice.start, source_slice.stop)
-        self.data_manager.write_ref(self.output_dset, source_name, new_slice, ref)
+        #  1. create an (N,2) array with parent->child indices (just 1:1 here)
+        parent_idcs = np.arange(source_slice.start, source_slice.stop).reshape(-1,1)
+        child_idcs = np.arange(new_slice.start, new_slice.stop).reshape(-1,1)
+        ref = np.concatenate((parent_idcs, child_idcs), axis=-1)
+        #  2. then write them into the file (no space reservation needed)
+        self.data_manager.write_ref(source_name, self.output_dset, ref)

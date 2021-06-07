@@ -5,6 +5,7 @@ from mpi4py import MPI
 import numpy as np
 
 from h5flow.data import H5FlowDataManager
+from h5flow.data import ref_region_dtype, dereference
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -64,13 +65,15 @@ def empty_testref(datamanager, empty_testdset):
 def test_create_ref(datamanager, empty_testref):
     dm = datamanager
     # check that ref dataset opens and has correct type
-    assert dm.get_ref(*empty_testref).dtype == h5py.regionref_dtype
+    assert dm.get_ref(*empty_testref)[0].shape == (0,2)
+    assert dm.get_ref(*empty_testref)[-1] == (0,1)
+    assert dm.get_ref_region(*empty_testref).dtype == ref_region_dtype
     # check that ref dataset is still empty
-    assert len(dm.get_ref(*empty_testref)) == 0
-    assert len(dm.get_ref_valid(*empty_testref)) == 0
+    assert len(dm.get_ref(*empty_testref)[0]) == 0
+    assert len(dm.get_ref_region(*empty_testref)) == 0
 
 @pytest.fixture
-def full_testdset(datamanager, empty_testdset):
+def full_testdset(datamanager, empty_testdset, empty_testref):
     dm = datamanager
     sl = dm.reserve_data(empty_testdset, 100)
     dm.write_data(empty_testdset, sl, rank)
@@ -84,23 +87,30 @@ def test_write_dset(datamanager, full_testdset):
     assert all(dm.get_dset(full_testdset[0])[full_testdset[1]] == rank)
 
 @pytest.fixture
-def full_testref(datamanager, full_testdset, empty_testref):
+def full_testref(datamanager, empty_testref, full_testdset):
     dm = datamanager
-    n = full_testdset[1].stop - full_testdset[1].start
-    sl = dm.reserve_ref(*empty_testref, n)
-    dm.write_ref(*empty_testref, sl, [full_testdset[1] for _ in range(sl.start, sl.stop)])
-    return empty_testref, sl
+    ref_idcs = np.r_[full_testdset[1]].reshape(1,-1,1)
+    idcs = np.r_[full_testdset[1]].reshape(-1,1,1)
+    idcs,ref_idcs = np.broadcast_arrays(idcs,ref_idcs)
+    ref = np.concatenate((idcs,ref_idcs), axis=-1).reshape(-1,2)
+    dm.write_ref(*empty_testref, ref)
+    return empty_testref, full_testdset[-1]
 
 def test_write_ref(datamanager, full_testdset, full_testref):
     dm = datamanager
+    n = len(dm.get_dset(full_testdset[0]))
     # check that we have access to the *full* ref dataset after writing
-    assert len(dm.get_ref(*full_testref[0])) == size*100
+    assert len(dm.get_ref(*full_testref[0])[0]) == size * 100**2
     # check that child attribute is accessible and correct
-    assert dm.fh[dm.get_ref(*full_testref[0]).attrs['child']] == dm.get_dset(full_testdset[0])
-    ref = dm.get_ref(*full_testref[0])[full_testref[1]]
+    assert dm.fh[dm.get_ref(*full_testref[0])[0].attrs['child']] == dm.get_dset(full_testdset[0])
+    ref, ref_dir = dm.get_ref(*full_testref[0])
     # check that first of process' refs point to the correct chunk of the dataset
-    assert all(dm.get_ref_valid(*full_testref[0])[full_testref[1]])
-    assert all(dm.get_dset(full_testdset[0])[ref[0]] == dm.get_dset(full_testdset[0])[full_testdset[1]])
+    sel = full_testref[1]
+    ref_region = dm.get_ref_region(*full_testref[0])
+    assert all(ref_region[sel]['start'] != ref_region[sel]['stop'])
+
+    data = dereference(dm.get_dset(full_testdset[0]), ref, ref_region, sel=sel, ref_direction=ref_dir)
+    assert all([np.all(dm.get_dset(full_testdset[0])[sel] == d) for d in data])
 
 
 
