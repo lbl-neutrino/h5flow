@@ -4,7 +4,7 @@ flow:
   source: input # uncomment to use the example generator
   # source: 'input/random' # uncomment to loop over an existing dataset
   stages: [example_stage0, example_stage1]
-  drop: ['input/random/data']
+  drop: []
 
 input:
   classname: ExampleGenerator

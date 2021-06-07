@@ -109,6 +109,7 @@ class H5FlowManager(object):
             tempfile = os.path.join(os.path.dirname(self.data_manager.filepath), '.temp-{}.h5'.format(time.time()))
             subprocess.run(['h5repack', self.data_manager.filepath, tempfile])
             os.replace(tempfile, self.data_manager.filepath)
+            os.remove(tempfile)
         self.comm.barrier()
 
     def update_cache(self, cache, source_name, source_slice, requirements):

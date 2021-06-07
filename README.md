@@ -119,8 +119,7 @@ Converting this into a dataset that can be broadcast back into either the `A` or
     b2a = dereference(
         f['/B/data'],       # dataset to load, shape: (M,)
         f['/A/ref/B/ref'],  # references to use, shape: (L,)
-        f['/A/ref/B/ref_region'], # lookup regions in references, shape: (N,), special dtype (see below)
-        as_masked = True    # return a numpy masked array
+        f['/A/ref/B/ref_region'] # lookup regions in references, shape: (N,), special dtype (see below)
         )
     b2a.shape # (N,n), where n is the max number of B items associated with a row in A
     b2a.dtype == f['/B/data'].dtype # True!
@@ -133,8 +132,7 @@ And the inverse relationships can be found by redefining the "ref_direction":::
         f['/A/data'],       # dataset to load, shape: (N,)
         f['/A/ref/B/ref'],  # references to use, shape: (L,)
         f['/B/ref/A/ref_region'], # lookup regions in references, shape: (M,)
-        ref_direction = (1,0), # now use references from 1->0 (B->A) [default is (0,1)]
-        as_masked = True    # return a numpy masked array
+        ref_direction = (1,0) # now use references from 1->0 (B->A) [default is (0,1)]
         )
     a2b.shape # (M,m), where m is the max number of A items associated with a row in B
     a2b.dtype == f['/A/data'].dtype # True!
@@ -147,8 +145,7 @@ to load, e.g. to load only the first 100 references of A->B::
         f['/B/data'],       # dataset to load, shape: (M,)
         f['/A/ref/B/ref'],  # references to use, shape: (L,)
         f['/A/ref/B/ref_region'], # lookup regions in references, shape: (N,)
-        sel = slice(0,100), # subset of reference region to use
-        as_masked = True    # return a numpy masked array
+        sel = slice(0,100) # subset of reference region to use
         )
     b2a_subset.shape # (100,n)
     b2a_subset.shape[-1] == b2a.shape[-1] # note that n will adaptively scale to what ever is needed to fit the maximum number of references, so this will not always be true!
