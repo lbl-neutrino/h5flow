@@ -65,16 +65,28 @@ between datasets are expected to be stored alongside the parent dataset::
 
 with the same dimensions as the parent dataset.
 
-To accomidate null references and to facilitate fast + parallel read/writes
-there is a companion structured dataset `ref_region` at the corresponding position
-as the `ref` dataset that indicates where to look in the reference dataset for
-the corresponding row. E.g.::
+To facilitate fast + parallel read/writes there is a companion structured
+dataset `ref_region` at the corresponding position as the `ref` dataset that
+indicates where to look in the reference dataset for the corresponding row.
+E.g.::
 
     /<dataset0_path>/data
     /<dataset0_path>/ref/<dataset1_path>/ref # references from dataset0 -> dataset1 (and back)
     /<dataset0_path>/ref/<dataset1_path>/ref_region # regions for dataset0 -> dataset1 reference
     /<dataset0_path>/ref/<dataset2_path>/ref # references from dataset0 -> dataset2 (and back)
     /<dataset0_path>/ref/<dataset2_path>/ref_region # regions for dataset0 -> dataset2 reference
+
+The `.../ref_region` datasets are a 1D structured array with fields `'start': int`
+and `'stop': int`. These represent the min and max indices of the `.../ref` array
+that contain the corresponding index. So for example::
+
+    data0 = np.array([0, 1, 2])
+    data1 = np.array([0, 1, 2, 3])
+
+    ref = np.array([[0,1], [1,2]]) # links data0[0] <-> data1[1], data0[1] <-> data1[2]
+
+    ref_region0 = np.array([(0,1), (1,2), (0,0)]) # ref_region for data0, the (0,0) entries correspond to entries without references
+    ref_region1 = np.array([(0,0), (0,1), (1,2), (0,0)]) # ref_region for data1
 
 ## example structure
 
@@ -86,22 +98,23 @@ Let's walk through an example in detail. Let's say we have two datasets `A` and
 
 These must be single dimensional arrays with either a simple or structured type::
 
-    f['/A/data'].dtype # [('id', 'i8'), ('some_val', 'f4')]
-    f['/B/data'].dtype # 'f4'
+    f['/A/data'].dtype # [('id', 'i8'), ('some_val', 'f4')], either a structured array
+    f['/B/data'].dtype # 'f4', or a simple array
 
-    f['/A/data'].shape # (N,)
+    f['/A/data'].shape # (N,), only single dimension datasets
     f['/B/data'].shape # (M,)
 
-Now, let's say there are references between the two datasets (in particular,
-we've created references from `A->B`::
+Now, let's say there are references between the two datasets ()::
 
     /A/ref/B/ref
     /A/ref/B/ref_region
     /B/ref/A/ref_region
 
-The `ref` dataset contains indices into the corresponding datasets designated by
-the second dimension. By convention, index 0 is the "parent" dataset (`A`) and index 1
-is the "child" dataset (`B`)::
+In particular, we've created references from `A->B` so the `../ref` is stored
+(by convention) at `/A/ref/B/ref`. This `../ref` dataset is 2D of shape `(L,2)`
+where `L` is not necessarily equal to `N` or `M` and it contains indices into
+each of the corresponding datasets. By convention, index 0 is the "parent"
+dataset (`A`) and index 1 is the "child" dataset (`B`)::
 
     f['/A/ref/B/ref'].shape # (L,2)
     f['/A/ref/B/ref'][:,0] # indices into f['/A/data']
@@ -117,38 +130,42 @@ Converting this into a dataset that can be broadcast back into either the `A` or
     from h5flow.data import dereference
 
     b2a = dereference(
-        f['/B/data'],       # dataset to load, shape: (M,)
+        slice(0, 1000),     # indices of A to load references for, shape: (n,)
         f['/A/ref/B/ref'],  # references to use, shape: (L,)
-        f['/A/ref/B/ref_region'] # lookup regions in references, shape: (N,), special dtype (see below)
+        f['/B/data']        # dataset to load, shape: (M,)
         )
-    b2a.shape # (N,n), where n is the max number of B items associated with a row in A
+    b2a.shape # (n,l), where l is the max number of B items associated with a row in A
     b2a.dtype == f['/B/data'].dtype # True!
 
     b_sum = b2a.sum(axis=-1) # use numpy masked array interface to operate on the b2a array
+    b_sum.shape # (n,), data can be broadcast back onto your selected indices
 
-And the inverse relationships can be found by redefining the "ref_direction":::
+And inverse relationships can be found by redefining the "ref_direction":::
 
     a2b = dereference(
+        slice(0, 250),      # indices of B to load references for, shape: (m,)
+        f['/A/ref/B/ref'],  # references to use, same as before, shape: (L,)
         f['/A/data'],       # dataset to load, shape: (N,)
-        f['/A/ref/B/ref'],  # references to use, shape: (L,)
-        f['/B/ref/A/ref_region'], # lookup regions in references, shape: (M,)
         ref_direction = (1,0) # now use references from 1->0 (B->A) [default is (0,1)]
         )
-    a2b.shape # (M,m), where m is the max number of A items associated with a row in B
+    a2b.shape # (m,q), where q is the max number of A items associated with a row in B
     a2b.dtype == f['/A/data'].dtype # True!
 
-This works just fine - until you start needing to load in very large arrays. In
-that case, you can pass a `sel` slice to select a subset of the parent dataset
-to load, e.g. to load only the first 100 references of A->B::
+This works just fine - until you start needing to keep track of a very large
+number of references (`~50000`). In that case, we use the special
+`region` (or `../ref_region` as it is called in the HDF5 file) dataset / array
+to facilitate only partially loading from the reference dataset::
 
     b2a_subset = dereference(
-        f['/B/data'],       # dataset to load, shape: (M,)
+        slice(0, 1000)      # indices of A to load references for, shape: (n,)
         f['/A/ref/B/ref'],  # references to use, shape: (L,)
-        f['/A/ref/B/ref_region'], # lookup regions in references, shape: (N,)
-        sel = slice(0,100) # subset of reference region to use
+        f['/B/data'],       # dataset to load, shape: (M,)
+        region = f['/A/ref/B/ref_region'] # lookup regions in references, shape: (N,)
         )
-    b2a_subset.shape # (100,n)
-    b2a_subset.shape[-1] == b2a.shape[-1] # note that n will adaptively scale to what ever is needed to fit the maximum number of references, so this will not always be true!
+    b2a_subset == b2a # same result as before, but internally this is handled in a much more efficient manner
+
+    %timeit dereference(0, f['/A/ref/B/ref'], f['/B/data']) # runtime: max(100ns * len(f['/A/ref/B/ref']), 1ms)
+    %timeit dereference(0, f['/A/ref/B/ref'], f['/B/data'], f['/A/ref/B/ref_region']) # runtime: ~5ms
 
 # h5flow workflow
 
@@ -256,3 +273,4 @@ the ``h5flow_modules/examples.py`` for a working example.
 
 # writing an `H5FlowGenerator`
 
+I haven't written this piece yet...
