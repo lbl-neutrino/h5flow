@@ -2,15 +2,14 @@
 
 flow:
   source: input # uncomment to use the example generator
-  # source: 'input/random' # uncomment to loop over an existing dataset
+  # source: 'input/index' # uncomment to loop over an existing dataset
   stages: [example_stage0, example_stage1]
   drop: []
 
 input:
   classname: ExampleGenerator
-  dset_name: 'input/random'
+  dset_name: 'input/index'
   params:
-    max_value: 256
     chunk_size: 1024
 
 example_stage0:
@@ -21,7 +20,7 @@ example_stage0:
 example_stage1:
   classname: ExampleStage
   requires:
-      - 'example_stage0/example'
+      - 'example_stage0/example' # load input/index -> example_stage0/example referred data
   params:
     output_dset: 'example_stage1/example'
 

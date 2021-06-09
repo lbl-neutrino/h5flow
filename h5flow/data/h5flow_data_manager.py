@@ -292,7 +292,7 @@ class H5FlowDataManager(object):
         region = region_dset[sel]
 
         _,idcs,start_idcs = np.intersect1d(np.r_[sel],ref_arr,return_indices=True)
-        start = np.zeros(len(region),dtype='i8')
+        start = np.zeros(len(region), dtype='i8')
         start[idcs] = ref_offset + start_idcs
         region_dset[sel,'start'] = np.where(
             region['start'] != region['stop'],
@@ -301,7 +301,7 @@ class H5FlowDataManager(object):
             )
 
         _,idcs,stop_idcs = np.intersect1d(np.r_[sel],ref_arr[::-1],return_indices=True)
-        stop = np.zeros(len(region),dtype='i8')
+        stop = np.zeros(len(region), dtype='i8')
         stop[idcs] = ref_offset + len(ref_arr) - stop_idcs
         region_dset[sel,'stop'] = np.where(
             region['start'] != region['stop'],

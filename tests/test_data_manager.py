@@ -109,7 +109,7 @@ def test_write_ref(datamanager, full_testdset, full_testref):
     ref_region = dm.get_ref_region(*full_testref[0])
     assert all(ref_region[sel]['start'] != ref_region[sel]['stop'])
 
-    data = dereference(dm.get_dset(full_testdset[0]), ref, ref_region, sel=sel, ref_direction=ref_dir)
+    data = dereference(sel, ref, dm.get_dset(full_testdset[0]), ref_region, ref_direction=ref_dir)
     assert all([np.all(dm.get_dset(full_testdset[0])[sel] == d) for d in data])
 
 

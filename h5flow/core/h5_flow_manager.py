@@ -142,4 +142,4 @@ class H5FlowManager(object):
                 refs, ref_dir = self.data_manager.get_ref(source_name, linked_name)
                 regions = self.data_manager.get_ref_region(source_name, linked_name)
 
-                cache[linked_name] = dereference(linked_dset, refs, regions, sel=source_slice, ref_direction=ref_dir, as_masked=True)
+                cache[linked_name] = dereference(source_slice, refs, linked_dset, region=regions, ref_direction=ref_dir)
