@@ -325,11 +325,12 @@ class H5FlowDataManager(object):
         ref_dset.resize((len(ref_dset) + sum(ns), 2))
         ref_dset[ref_offset:ref_offset + ns[self.rank]] = refs[:,ref_dir]
 
-        parent_ref_region_dset = self.get_ref_region(parent_dataset_name, child_dataset_name)
-        child_ref_region_dset = self.get_ref_region(child_dataset_name, parent_dataset_name)
+        if len(refs):
+            parent_ref_region_dset = self.get_ref_region(parent_dataset_name, child_dataset_name)
+            child_ref_region_dset = self.get_ref_region(child_dataset_name, parent_dataset_name)
 
-        parent_sel = slice(np.min(refs[:,0]), np.max(refs[:,0])+1)
-        child_sel = slice(np.min(refs[:,1]), np.max(refs[:,1])+1)
+            parent_sel = slice(np.min(refs[:,0]), np.max(refs[:,0])+1)
+            child_sel = slice(np.min(refs[:,1]), np.max(refs[:,1])+1)
 
-        self._update_ref_region(parent_ref_region_dset, parent_sel, refs[:,0], ref_offset)
-        self._update_ref_region(child_ref_region_dset, child_sel, refs[:,1], ref_offset)
+            self._update_ref_region(parent_ref_region_dset, parent_sel, refs[:,0], ref_offset)
+            self._update_ref_region(child_ref_region_dset, child_sel, refs[:,1], ref_offset)

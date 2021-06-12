@@ -57,7 +57,7 @@ class H5FlowManager(object):
                 classname=args.get('classname'),
                 name=name,
                 data_manager=self.data_manager,
-                requires=args.get('requires',None),
+                requires=self.format_requirements(args.get('requires',list())),
                 **args.get('params',dict()))
             for name,args in zip(stage_names, stage_args)
             ]
@@ -69,6 +69,42 @@ class H5FlowManager(object):
             classname='H5FlowDatasetLoopGenerator',
             dset_name=source_name
             )
+
+    def format_requirements(self, requirements):
+        '''
+            Converts list from the "requires" configuration option into an
+            list of dicts with::
+
+                name: name of object to place in cache
+                path: list of reference datasets (parent, child) to load for this requirement
+                indices_only: boolean if dataset should only load reference indices rather than data
+
+        '''
+        req = []
+        for r in requirements:
+            if isinstance(r, str):
+                req.append(dict(
+                    name= r,
+                    path= [r],
+                    indices_only= False
+                    ))
+            elif isinstance(r,dict):
+                d = dict(name=r['name'])
+                if 'path' in r:
+                    if isinstance(r['path'],str):
+                        d['path'] = [r['path']]
+                    elif isinstance(r['path'],list):
+                        d['path'] = r['path']
+                    else:
+                        raise ValueError(f'Unrecognized path specification in {r}')
+                else:
+                    d['path'] = [d['name']]
+                d['indices_only'] = r['indices_only'] if 'indices_only' in r else False
+                req.append(d)
+            else:
+                raise ValueError(f'Unrecognized requirement {r}')
+        return req
+
 
     def init(self):
         logging.debug(f'init generator')
@@ -116,11 +152,12 @@ class H5FlowManager(object):
         '''
             Load and dereference "required" data associated with a given source
             - first loads the data subset of ``source_name`` specified by the
-            ``source_slice``. Then loops over the datasets in ``self.requires``
-            and loads data from ``source_name -> required_name`` references.
+            ``source_slice``. Then loops over the specification dicts in ``self.requires``
+            and loads data from references found in `'path'`.
+
             Called automatically once per loop, just before calling ``run``.
 
-            Only loads data to the cache if it is not already present
+            Only loads data to the cache if it is not already present.
 
             :param cache: ``dict`` cache to update
 
@@ -129,17 +166,57 @@ class H5FlowManager(object):
             :param source_slice: a 1D slice into the source dataset
 
         '''
+        required_names = [r['name'] for r in requirements]
+
         for name in list(cache.keys()).copy():
-            if name not in requirements and name != source_name:
+            if name not in required_names and name != source_name:
                 del cache[name]
 
         if source_name not in cache:
             cache[source_name] = self.data_manager.get_dset(source_name)[source_slice]
 
-        for linked_name in requirements:
+        for i,linked_name in enumerate(required_names):
             if linked_name not in cache:
-                linked_dset = self.data_manager.get_dset(linked_name)
-                refs, ref_dir = self.data_manager.get_ref(source_name, linked_name)
-                regions = self.data_manager.get_ref_region(source_name, linked_name)
+                cache[linked_name] = self.load_requirement(requirements[i], source_name, source_slice)
 
-                cache[linked_name] = dereference(source_slice, refs, linked_dset, region=regions, ref_direction=ref_dir)
+    def load_requirement(self, req, source_name, source_slice):
+        '''
+            Loads a requirement specified by::
+
+                path: list of references to traverse
+                indices_only: True to load only indices and not data
+
+        '''
+        path = req['path']
+        indices_only = req['indices_only']
+
+        sel = np.r_[source_slice]
+        shape = [len(sel),]
+        mask = np.zeros(len(sel), dtype=bool)
+        dref = None
+        for i,(p,c) in enumerate(zip([source_name]+path[:-1], path)):
+            dset = self.data_manager.get_dset(c)
+            ref, ref_dir = self.data_manager.get_ref(p,c)
+            reg = self.data_manager.get_ref_region(p,c)
+
+            dref = dereference(sel.flatten(), ref, dset, region=reg, ref_direction=ref_dir,
+                indices_only=True if i != len(path)-1 else indices_only)
+            shape += dref.shape[-1:]
+
+            dref = dref.reshape(*shape)
+            mask = np.expand_dims(mask, axis=-1) | dref.mask
+
+            if i != len(path)-1:
+                sel = dref
+
+        dref.mask = mask
+        return dref
+
+
+
+
+
+
+
+
+

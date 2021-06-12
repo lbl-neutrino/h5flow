@@ -217,6 +217,40 @@ with any desired parameters at the top level within the yaml file::
     dummy_stage1:
         classname: OtherDummyStage
 
+You can also specify specific datasets to load that is linked to the current
+loop dataset with the `requires` field::
+
+    dummy_stage_requires:
+        classname: DummyStage
+        requires:
+            - <path to a dataset that has source <-> dset references>
+            - <path to a second dataset with source <-> dset references>
+
+This will load a ``numpy`` masked array into the ``cache`` under a key of the
+same path.
+
+You can specify complex linking paths to load data from references to references
+(or references to references to references ...) by specifying a path and a
+name:
+
+    dummy_stage_complex_requires:
+        classname: DummyStage
+        requires:
+            - name: <name to use in the cache>
+              path: [<path to first dataset>, <path to second dataset>, ...]
+
+which will load the data at ``source -> <first dataset> -> <second dataset>``.
+
+Finally, you can also indicate if you just want to load an index into the final
+dataset (rather than the data) with the ``index_only`` flag::
+
+    dummy_stage_index_requires:
+        classname: DummyStage
+        requires:
+            - name: <name to use in cache>
+              path: [<first dataset>, <second dataset>]
+              index_only: True
+
 # writing an `H5FlowStage`
 
 Any `H5FlowStage`-inheriting class has 4 main components:
