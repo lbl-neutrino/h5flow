@@ -1,11 +1,13 @@
-# h5flow
+h5flow
+======
 
 A basic MPI framework to create simple sequential workflows, looping over
 a dataset within a structured HDF5 file. All MPI calls are hidden behind an API
-to allow for (hopefully) seamless running in either a single-process or a
-multi-process environment.
+to allow for straight-forward implementation of parallelized algorithms without
+the need to be familiar with MPI.
 
-## installation
+installation
+------------
 
 To setup a fresh conda environment::
 
@@ -27,33 +29,49 @@ To run mpi tests::
 
     mpiexec pytest --with-mpi
 
-## usage
+usage
+-----
 
 To run a single-process workflow::
 
     h5flow -o <output file>.h5 -c <config file>.yaml\
         -i <input file, opt.> -s <start position, opt.> -e <end position, opt.>
 
+The output file here is the destination hdf5 file path. The config file is a
+yaml description of the workflow sequence and the parameters for each custom
+module in the workflow.
+
+The other arguments are optional, depending on the specifics of the workflow.
+Generators may require an input file (specified by the input file argument). The
+start and end position arguments allow for partial processing of a given input
+file.
+
 To run a parallelized workflow::
 
     mpiexec h5flow -o <output file>.h5 -c <config file>.yaml\
         -i <input file, opt.> -s <start position, opt.> -e <end position, opt.>
 
-Alternative entry points::
+which will launch as many instances of h5flow as there are cores - each instance
+are given subsets of the input file to process according to the behavior of the
+generator declared in the workflow.
+
+There are also some alternative entry points that can be used to launch ``h5flow``
+in the event that one of the above doesn't work for your application::
 
     python -m h5flow <args>
     run_h5flow.py <args>
 
-# h5flow hdf5 structure
+h5flow hdf5 structure
+=====================
 
-`h5flow` requires a specific, table-like hdf5 structure with references
+``h5flow`` requires a specific, table-like hdf5 structure with references
 between datasets. Each dataset is expected to be stored within a group path::
 
     /<dataset0_path>/data
     /<dataset1_path>/data
     /<dataset2_path>/data
 
-Datasets are expected to be single-dimesional structured arrays. References
+Datasets are expected to be single-dimensional structured arrays. References
 between datasets are expected to be stored alongside the parent dataset::
 
     /<dataset0_path>/data
@@ -75,25 +93,72 @@ as the `ref` dataset that indicates if the reference is a valid reference. E.g.:
     /<dataset0_path>/ref/<dataset2_path>/ref # references from dataset0 -> dataset2
     /<dataset0_path>/ref/<dataset2_path>/ref_valid # indicator for valid dataset0 -> dataset2 reference
 
-# h5flow workflow
+h5flow workflow
+===============
 
-`h5flow` uses a yaml config file to define the workflow. The main definition of
-the workflow is defined under the `flow` key::
+There are four central components of an ``h5flow`` workflow:
+    1. the manager
+    2. the generator
+    3. stages
+    4. the data manager
+
+The manager (see documentation under ``h5flow.core.h5flow_manager``) initializes
+components of the workflow (namely, the generator, stages, and the data manager),
+and then executes their methods in order:
+
+    1. ``generator.init``
+    2. ``stage.init`` (in sequence specified in the flow)
+    3. ``generator.run`` (until all processes return ``h5flow.h5flow_generator.EMPTY``)
+    4. ``stage.run``
+    5. ``generator.finish``
+    6. ``stage.finish``
+
+The ``init`` stage creates datasets in the output file and configures each
+component for the loop.
+
+The ``run`` stage performs calculations on subsets of the input dataset and
+write new data back to the file.
+
+The ``finish`` stage allows components to flush any lingering data in memory to
+the data files or finalize and complete any summary calculations.
+
+The generator (see documentation under ``h5flow.core.h5flow_generator``) provides
+slices into a source dataset for each stage to execute on. Custom generators can
+be written to convert datatypes or generate new datasets, or ``h5flow`` provides
+a built-in "loop generator" that can be used to iterate across an existing
+dataset in an efficient manner.
+
+Stages are custom, user-built algorithms that take slices into a source dataset
+and perform a specific calculation on that slice, typically writing new data into
+a different dataset in the hdf5 file.
+
+In order to make the most use of parallel file access provided by ``h5flow`` a
+workflow should meet the following requirements:
+
+    1. source dataset slices are `fully` independent of each other
+    2. input and output datasets have only 1 dimension (the loop dimension). Note that this does not preclude using compound datatypes with more than one dimension, i.e. ``dset.shape == (N,)`` and ``dset.dtype == [('values','i8(100,')]`` is allowed.
+
+configuration
+-------------
+
+``h5flow`` uses a yaml config file to define the workflow. The main definition of
+the workflow is defined under the ``flow`` key::
 
     flow:
         source: <dataset to loop over, or generator name>
         stages: [<first sequential stage name>, <second sequential stage name>]
         drop: [<dataset name, opt.>]
 
-The `source` defines the loop source dataset. By default, you may specify an
-existing dataset and an `H5FlowDatasetLoopGenerator` will be used. `stages`
+The ``source`` defines the loop source dataset. By default, you may specify an
+existing dataset and an ``H5FlowDatasetLoopGenerator`` will be used. ``stages``
 defines the names and sequential order of the analysis stages should be executed
-on each data chunk provided by the generator. Optionally, `drop` defines a list
+on each data chunk provided by the generator. Optionally, ``drop`` defines a list
 of datasets to delete from the output file after the run loop completes.
 
-## generators
+generators
+~~~~~~~~~~
 
-To define a generator, specify the name, an `H5FlowGenerator`-inheriting
+To define a generator, specify the name, an ``H5FlowGenerator``-inheriting
 classname, along with any desired parameters at the top level within the yaml
 file::
 
@@ -104,12 +169,13 @@ file::
             dummy_param: value
 
 For both generators and stages, classes will be discovered for within the
-current directory, the `./h5flow_modules/` directory, or the `h5flow/modules`
+current directory, the ``./h5flow_modules/`` directory, or the ``h5flow/modules``
 directory (in that order) and automatically loaded upon runtime.
 
-## stages
+stages
+~~~~~~
 
-To define a stage, specify the name, an `H5FlowStage`-inheriting classname, along
+To define a stage, specify the name, an ``H5FlowStage``-inheriting classname, along
 with any desired parameters at the top level within the yaml file::
 
     flow:
@@ -125,16 +191,17 @@ with any desired parameters at the top level within the yaml file::
     dummy_stage1:
         classname: OtherDummyStage
 
-# writing an `H5FlowStage`
+writing an ``H5FlowStage``
+==========================
 
-Any `H5FlowStage`-inheriting class has 4 main components:
-    1. a constructor (`__init__()`)
+Any ``H5FlowStage``-inheriting class has 4 main components:
+    1. a constructor (``__init__()``)
     2. class attributes
-    3. an initialization `init()` method
-    4. and a `run()` method
+    3. an initialization ``init()`` method
+    4. and a ``run()`` method
 
 
-None of the methods are required for the class to function within `h5flow`, but
+None of the methods are required for the class to function within ``h5flow``, but
 each provide particular access points into the flow sequence.
 
 First, the constructor is called when the flow sequence is first created and
@@ -179,5 +246,8 @@ downstream stages. Reading and writing other data objects from the file can be
 done via the ``H5FlowDataManager`` object within ``self.data_manager``. Refer to
 the ``h5flow_modules/examples.py`` for a working example.
 
-# writing an `H5FlowGenerator`
+writing an ``H5FlowGenerator``
+==============================
+
+I haven't written this section yet...
 
