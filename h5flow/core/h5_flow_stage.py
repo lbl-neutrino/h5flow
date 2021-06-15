@@ -10,6 +10,7 @@ size = comm.Get_size()
 class H5FlowStage(object):
     '''
         Base class for loop stage. Provides the following attributes:
+
          - ``name``: instance name of stage (declared in configuration file)
          - ``classname``: stage class
          - ``class_version``: a ``str`` version number (``'major.minor.fix'``, default = ``'0.0.0'``)
@@ -51,8 +52,6 @@ class H5FlowStage(object):
                     # load, process, and save new data objects
 
                     data = self.load(source_name, source_slice)
-
-
 
     '''
     class_version = '0.0.0'

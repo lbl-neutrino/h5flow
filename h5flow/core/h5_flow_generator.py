@@ -5,6 +5,7 @@ from mpi4py import MPI
 class H5FlowGenerator(object):
     '''
         Base class for generators. Provides the following attributes:
+
          - ``classname``: stage class
          - ``class_version``: a ``str`` version number (``'major.minor.fix'``, default = ``'0.0.0'``)
          - ``dset_name``: dataset to be accessed by each stage

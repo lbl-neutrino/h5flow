@@ -5,6 +5,16 @@ import sys
 from pkgutil import iter_modules
 
 def find_class(classname, directory):
+    '''
+        Search the specified directory for a file containing a python
+        implementation with the specified class name
+
+        :param classname: class name to look for
+
+        :param directory: directory to search for ``*.py`` files describing the class
+
+        :returns: ``class`` object of matching desired class (if found), or ``None`` (if not found)
+    '''
     path = directory
     for (finder, name, _) in iter_modules([path]):
         if name == 'setup' or name == 'h5flow':
@@ -21,6 +31,17 @@ def find_class(classname, directory):
     return None
 
 def get_class(classname):
+    '''
+        Look in current directory, ``./h5flow_modules/``, and ``h5flow/modules/``
+        for the specified class. Raises a ``RuntimeError`` if class can't be
+        found in any of those directories.
+
+        :param classname: class name to search for
+
+        :returns: ``class`` object of desired class
+
+    '''
+
     # first search in local directory
     found_class = find_class(classname, './')
 

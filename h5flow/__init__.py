@@ -9,6 +9,22 @@ from mpi4py import MPI
 from .core import H5FlowManager
 
 def run(config, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0):
+    '''
+        Execute a workflow specified by ``config`` writing to ``output_filename``.
+
+        :param config: ``str``, path to configuration yaml
+
+        :param output_filename: ``str``, path to output hdf5 file
+
+        :param input_filename: ``str``, path to optional input file (default: ``None``)
+
+        :param start_position: ``int``, loop start index given to generator (default: ``None``)
+
+        :param end_position: ``int``, loop end index given to generator (default: ``None``)
+
+        :param verbose: ``int``, verbosity level (``0 = warnings only``, ``1 = info``, ``2 = debug``)
+
+    '''
     rank = MPI.COMM_WORLD.Get_rank()
 
     log_level = { 0:'WARNING', 1:'INFO', 2:'DEBUG' }[verbose]
@@ -48,6 +64,11 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
         logging.info('~~~~~~~~~~~~~~')
 
 def main():
+    '''
+        Entry point for command line execution. Parses arguments from command
+        line and executes ``run(**parsed_args)``.
+
+    '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose','-v', action='count', default=0, help='''Increase verbosity, can specify more for more verbose (e.g. -vv)''')
     parser.add_argument('--input_filename','-i', type=str, default=None, required=False, help='''input hdf5 file to loop over, optional if using a custom file generator''')

@@ -108,7 +108,7 @@ and then executes their methods in order:
 
     1. ``generator.init``
     2. ``stage.init`` (in sequence specified in the flow)
-    3. ``generator.run`` (until all processes return ``h5flow.h5flow_generator.EMPTY``)
+    3. ``generator.run`` (until all processes return ``H5FlowGenerator.EMPTY``)
     4. ``stage.run``
     5. ``generator.finish``
     6. ``stage.finish``
