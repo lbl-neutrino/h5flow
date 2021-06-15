@@ -160,6 +160,18 @@ class H5FlowDataManager(object):
         dset = self.fh[f'{child_dataset_name}/ref/{parent_dataset_name}/ref']
         return dset, (1,0)
 
+    def get_refs(self, dataset_name):
+        '''
+
+        '''
+        reg_regions = list()
+        self.fh.visititems(lambda n,d:
+            reg_regions.append(d) \
+            if isinstance(d,h5py.Dataset) and n.endswith('/ref_region') \
+            else None
+            )
+        return [self.fh[d.attrs['ref']] for d in reg_regions]
+
     def get_ref_region(self, parent_dataset_name, child_dataset_name):
         '''
             Get reference lookup regions for ``parent_dataset_name -> child_dataset_name``
@@ -206,7 +218,7 @@ class H5FlowDataManager(object):
         '''
             Create a 1D dataset of references of
             ``parent_dataset_name -> child_dataset_name``, if it doesn't already
-            exist
+            exist. Both datasets must already exist.
 
             :param parent_dataset_name: ``str`` path to parent dataset, e.g. ``stage0/obj0``
 
@@ -220,15 +232,23 @@ class H5FlowDataManager(object):
         if path not in self.fh:
             if f'{parent_dataset_name}/ref' not in self.fh:
                 self.fh.create_group(f'{parent_dataset_name}/ref')
-                self.fh[f'{parent_dataset_name}/ref'].attrs['parent'] = self.fh[f'{parent_dataset_name}/data'].ref
+
             self.fh.create_dataset(path+'/ref', shape=(0,2), maxshape=(None,2),
                 dtype='u8')
-            self.fh[path+'/ref'].attrs['child'] = self.fh[f'{child_dataset_name}/data'].ref
-            self.fh.create_dataset(path+'/ref_region', shape=(0,), maxshape=(None,),
+            self.fh[path+'/ref'].attrs['dset0'] = self.get_dset(parent_dataset_name).ref
+            self.fh[path+'/ref'].attrs['dset1'] = self.get_dset(child_dataset_name).ref
+
+            parent_dset = self.get_dset(parent_dataset_name)
+            child_dset = self.get_dset(child_dataset_name)
+            self.fh.create_dataset(path+'/ref_region', shape=(len(parent_dset),), maxshape=(None,),
                 dtype=ref_region_dtype, fillvalue=np.zeros((1,), dtype=ref_region_dtype))
-            if (child_path+'/ref_region') not in self.fh:
-                self.fh.create_dataset(child_path+'/ref_region', shape=(0,), maxshape=(None,),
-                    dtype=ref_region_dtype, fillvalue=np.zeros((1,), dtype=ref_region_dtype))
+            self.fh.create_dataset(child_path+'/ref_region', shape=(len(child_dset),), maxshape=(None,),
+                dtype=ref_region_dtype, fillvalue=np.zeros((1,), dtype=ref_region_dtype))
+            self.fh[path+'/ref_region'].attrs['ref'] = self.fh[path+'/ref'].ref
+            self.fh[child_path+'/ref_region'].attrs['ref'] = self.fh[path+'/ref'].ref
+
+            self.fh[path+'/ref'].attrs['ref_region0'] = self.fh[f'{path}/ref_region'].ref
+            self.fh[path+'/ref'].attrs['ref_region1'] = self.fh[f'{child_path}/ref_region'].ref
 
     def reserve_data(self, dataset_name, spec):
         '''
@@ -252,24 +272,23 @@ class H5FlowDataManager(object):
         if isinstance(spec, int):
             # create a new chunk at the end of the dataset
             n = sum(specs)
-            grp.visititems(
-                lambda name,d : d.resize((curr_len + n,)) \
-                if (name.endswith('data') or name.endswith('ref_region')) and isinstance(d, h5py.Dataset)\
-                else None
-                )
+            dset.resize((curr_len + n,))
+            for ref in self.get_refs(dataset_name):
+                self.fh[ref.attrs['ref_region0']].resize((len(self.fh[ref.attrs['dset0']]),))
+                self.fh[ref.attrs['ref_region1']].resize((len(self.fh[ref.attrs['dset1']]),))
+
             rv = slice(curr_len + sum(specs[:self.rank]), curr_len + sum(specs[:self.rank+1]))
         elif isinstance(spec, slice):
             # maybe create up to a specific chunk of the dataset
             new_size = max([spec.stop for spec in specs])
             if new_size > curr_len:
-                grp.visititems(
-                    lambda name,d : d.resize((new_size,)) \
-                    if (name.endswith('data') or name.endswith('ref_region')) and isinstance(d, h5py.Dataset)\
-                    else None
-                )
+                dset.resize((new_size,))
+                for ref in self.get_refs(dataset_name):
+                    self.fh[ref.attrs['ref_region0']].resize((len(self.fh[ref.attrs['dset0']]),))
+                    self.fh[ref.attrs['ref_region1']].resize((len(self.fh[ref.attrs['dset1']]),))
             rv = spec
         else:
-            raise TypeError(f'spec {spec} is not a valid type')
+            raise TypeError(f'spec {spec} is not a valid type, must be slice or integer')
         return rv
 
     def write_data(self, dataset_name, spec, data):
@@ -286,9 +305,12 @@ class H5FlowDataManager(object):
         dset = self.get_dset(dataset_name)
         dset[spec] = data
 
-    @staticmethod
-    def _update_ref_region(region_dset, sel, ref_arr, ref_offset):
+    def _update_ref_region(self, region_dset, sel, ref_arr, ref_offset):
         # Note:: ref_arr is the 1D array of indices into region_dset to update, ref_offset is where ref_array is positioned within a larger ref dataset
+        max_length = int(np.max(self.comm.allgather(sel.stop)))
+
+        if len(region_dset) < max_length:
+            region_dset.resize((max_length,))
         region = region_dset[sel]
 
         _,idcs,start_idcs = np.intersect1d(np.r_[sel],ref_arr,return_indices=True)
@@ -325,12 +347,15 @@ class H5FlowDataManager(object):
         ref_dset.resize((len(ref_dset) + sum(ns), 2))
         ref_dset[ref_offset:ref_offset + ns[self.rank]] = refs[:,ref_dir]
 
+        parent_ref_region_dset = self.get_ref_region(parent_dataset_name, child_dataset_name)
+        child_ref_region_dset = self.get_ref_region(child_dataset_name, parent_dataset_name)
+
         if len(refs):
-            parent_ref_region_dset = self.get_ref_region(parent_dataset_name, child_dataset_name)
-            child_ref_region_dset = self.get_ref_region(child_dataset_name, parent_dataset_name)
+            parent_sel = slice(int(np.min(refs[:,0])), int(np.max(refs[:,0])+1))
+            child_sel = slice(int(np.min(refs[:,1])), int(np.max(refs[:,1])+1))
+        else:
+            parent_sel = slice(0,0)
+            child_sel = slice(0,0)
 
-            parent_sel = slice(np.min(refs[:,0]), np.max(refs[:,0])+1)
-            child_sel = slice(np.min(refs[:,1]), np.max(refs[:,1])+1)
-
-            self._update_ref_region(parent_ref_region_dset, parent_sel, refs[:,0], ref_offset)
-            self._update_ref_region(child_ref_region_dset, child_sel, refs[:,1], ref_offset)
+        self._update_ref_region(parent_ref_region_dset, parent_sel, refs[:,0], ref_offset)
+        self._update_ref_region(child_ref_region_dset, child_sel, refs[:,1], ref_offset)

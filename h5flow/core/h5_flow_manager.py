@@ -1,5 +1,7 @@
 import h5py
 import numpy as np
+import numpy.ma as ma
+import numpy.lib.recfunctions as rfn
 import shutil
 import os
 from mpi4py import MPI
@@ -77,7 +79,7 @@ class H5FlowManager(object):
 
                 name: name of object to place in cache
                 path: list of reference datasets (parent, child) to load for this requirement
-                indices_only: boolean if dataset should only load reference indices rather than data
+                index_only: boolean if dataset should only load reference indices rather than data
 
         '''
         req = []
@@ -86,7 +88,7 @@ class H5FlowManager(object):
                 req.append(dict(
                     name= r,
                     path= [r],
-                    indices_only= False
+                    index_only= False
                     ))
             elif isinstance(r,dict):
                 d = dict(name=r['name'])
@@ -99,7 +101,7 @@ class H5FlowManager(object):
                         raise ValueError(f'Unrecognized path specification in {r}')
                 else:
                     d['path'] = [d['name']]
-                d['indices_only'] = r['indices_only'] if 'indices_only' in r else False
+                d['index_only'] = r['index_only'] if 'index_only' in r else False
                 req.append(d)
             else:
                 raise ValueError(f'Unrecognized requirement {r}')
@@ -184,32 +186,35 @@ class H5FlowManager(object):
             Loads a requirement specified by::
 
                 path: list of references to traverse
-                indices_only: True to load only indices and not data
+                index_only: True to load only indices and not data
 
         '''
         path = req['path']
-        indices_only = req['indices_only']
+        index_only = req['index_only']
 
-        sel = np.r_[source_slice]
-        shape = [len(sel),]
-        mask = np.zeros(len(sel), dtype=bool)
+        sel = np.array(np.r_[source_slice])
+        mask = np.zeros_like(sel, dtype=bool)
+        sel = ma.array(sel, mask=mask)
+        shape = (len(sel),)
         dref = None
         for i,(p,c) in enumerate(zip([source_name]+path[:-1], path)):
             dset = self.data_manager.get_dset(c)
             ref, ref_dir = self.data_manager.get_ref(p,c)
             reg = self.data_manager.get_ref_region(p,c)
 
-            dref = dereference(sel.flatten(), ref, dset, region=reg, ref_direction=ref_dir,
-                indices_only=True if i != len(path)-1 else indices_only)
+            dref = dereference(sel.data.ravel(), ref, dset, region=reg,
+                mask=mask.ravel(), ref_direction=ref_dir,
+                indices_only=True if i != len(path)-1 else index_only)
             shape += dref.shape[-1:]
 
-            dref = dref.reshape(*shape)
-            mask = np.expand_dims(mask, axis=-1) | dref.mask
+            mask = np.expand_dims(mask, axis=-1) | \
+                (rfn.structured_to_unstructured(dref.mask).any(axis=-1).reshape(shape) \
+                if dref.mask.dtype.kind == 'V' else dref.mask.reshape(shape))
+            dref = ma.array(dref.data.reshape(shape), mask=mask)
 
             if i != len(path)-1:
                 sel = dref
 
-        dref.mask = mask
         return dref
 
 
