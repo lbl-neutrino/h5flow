@@ -59,8 +59,10 @@ def test_setattr(datamanager, empty_testattr):
 @pytest.fixture
 def empty_testref(datamanager, empty_testdset):
     dm = datamanager
-    dm.create_ref(empty_testdset, empty_testdset)
-    return empty_testdset, empty_testdset
+    other_dset = empty_testdset + '_other'
+    dm.create_dset(other_dset, dm.get_dset(empty_testdset).dtype)
+    dm.create_ref(empty_testdset, other_dset)
+    return empty_testdset, other_dset
 
 def test_create_ref(datamanager, empty_testref):
     dm = datamanager
@@ -89,6 +91,8 @@ def test_write_dset(datamanager, full_testdset):
 @pytest.fixture
 def full_testref(datamanager, empty_testref, full_testdset):
     dm = datamanager
+    sl = dm.reserve_data(empty_testref[-1], full_testdset[-1])
+    dm.write_data(empty_testref[-1], sl, rank)
     ref_idcs = np.r_[full_testdset[1]].reshape(1,-1,1)
     idcs = np.r_[full_testdset[1]].reshape(-1,1,1)
     idcs,ref_idcs = np.broadcast_arrays(idcs,ref_idcs)
@@ -102,7 +106,8 @@ def test_write_ref(datamanager, full_testdset, full_testref):
     # check that we have access to the *full* ref dataset after writing
     assert len(dm.get_ref(*full_testref[0])[0]) == size * 100**2
     # check that child attribute is accessible and correct
-    assert dm.fh[dm.get_ref(*full_testref[0])[0].attrs['child']] == dm.get_dset(full_testdset[0])
+    assert dm.fh[dm.get_ref(*full_testref[0])[0].attrs['dset0']] == dm.get_dset(full_testdset[0])
+    assert dm.fh[dm.get_ref(*full_testref[0])[0].attrs['dset1']] == dm.get_dset(full_testref[0][-1])
     ref, ref_dir = dm.get_ref(*full_testref[0])
     # check that first of process' refs point to the correct chunk of the dataset
     sel = full_testref[1]
