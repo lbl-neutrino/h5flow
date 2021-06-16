@@ -9,6 +9,11 @@ the need to be familiar with MPI.
 installation
 ------------
 
+First, download this code::
+
+    git clone https://github.com/peter-madigan/h5flow
+    cd h5flow
+
 To setup a fresh conda environment::
 
     conda create --name <env> --file environment.yml
