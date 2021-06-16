@@ -9,8 +9,7 @@ from .lib import ref_region_dtype
 
 class H5FlowDataManager(object):
     '''
-        The ``H5FlowDataManager`` class coordinates access to the output data
-        file across multiple processes.
+        Coordinates access to the output data file across multiple processes.
 
         To initialize::
 
@@ -51,7 +50,7 @@ class H5FlowDataManager(object):
 
     def close_file(self):
         '''
-            Force underlying resource to close
+            Force underlying hdf5 resource to close
 
         '''
         if self._fh is not None and self._fh:
@@ -61,7 +60,8 @@ class H5FlowDataManager(object):
     def fh(self):
         '''
             Direct access to the underlying h5py ``File`` object. Not recommended
-            for writing to datasets.
+            for writing to datasets (see ``reserve_data``, ``write_data``, and
+            ``write_ref``).
 
         '''
         if self._fh is None or not self._fh:
@@ -308,7 +308,6 @@ class H5FlowDataManager(object):
     def _update_ref_region(self, region_dset, sel, ref_arr, ref_offset):
         # Note:: ref_arr is the 1D array of indices into region_dset to update, ref_offset is where ref_array is positioned within a larger ref dataset
         max_length = int(np.max(self.comm.allgather(sel.stop)))
-
         if len(region_dset) < max_length:
             region_dset.resize((max_length,))
         region = region_dset[sel]
