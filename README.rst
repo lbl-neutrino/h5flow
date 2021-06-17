@@ -9,6 +9,11 @@ the need to be familiar with MPI.
 installation
 ------------
 
+First, download this code::
+
+    git clone https://github.com/peter-madigan/h5flow
+    cd h5flow
+
 To setup a fresh conda environment::
 
     conda create --name <env> --file environment.yml
@@ -83,15 +88,108 @@ between datasets are expected to be stored alongside the parent dataset::
 
 with the same dimensions as the parent dataset.
 
-To accomidate null references (which are not well supported by h5py at this time),
-there is a companion boolean dataset `ref_valid` at the corresponding position
-as the `ref` dataset that indicates if the reference is a valid reference. E.g.::
+To facilitate fast + parallel read/writes there is a companion structured
+dataset `ref_region` at the corresponding position as the `ref` dataset that
+indicates where to look in the reference dataset for the corresponding row.
+E.g.::
 
     /<dataset0_path>/data
-    /<dataset0_path>/ref/<dataset1_path>/ref # references from dataset0 -> dataset1
-    /<dataset0_path>/ref/<dataset1_path>/ref_valid # indicator for valid dataset0 -> dataset1 reference
-    /<dataset0_path>/ref/<dataset2_path>/ref # references from dataset0 -> dataset2
-    /<dataset0_path>/ref/<dataset2_path>/ref_valid # indicator for valid dataset0 -> dataset2 reference
+    /<dataset0_path>/ref/<dataset1_path>/ref # references from dataset0 -> dataset1 (and back)
+    /<dataset0_path>/ref/<dataset1_path>/ref_region # regions for dataset0 -> dataset1 reference
+    /<dataset0_path>/ref/<dataset2_path>/ref # references from dataset0 -> dataset2 (and back)
+    /<dataset0_path>/ref/<dataset2_path>/ref_region # regions for dataset0 -> dataset2 reference
+
+The `.../ref_region` datasets are a 1D structured array with fields `'start': int`
+and `'stop': int`. These represent the min and max indices of the `.../ref` array
+that contain the corresponding index. So for example::
+
+    data0 = np.array([0, 1, 2])
+    data1 = np.array([0, 1, 2, 3])
+
+    ref = np.array([[0,1], [1,2]]) # links data0[0] <-> data1[1], data0[1] <-> data1[2]
+
+    ref_region0 = np.array([(0,1), (1,2), (0,0)]) # ref_region for data0, the (0,0) entries correspond to entries without references
+    ref_region1 = np.array([(0,0), (0,1), (1,2), (0,0)]) # ref_region for data1
+
+example structure
+-----------------
+
+Let's walk through an example in detail. Let's say we have two datasets ``A`` and
+``B``::
+
+    /A/data
+    /B/data
+
+These must be single dimensional arrays with either a simple or structured type::
+
+    f['/A/data'].dtype # [('id', 'i8'), ('some_val', 'f4')], either a structured array
+    f['/B/data'].dtype # 'f4', or a simple array
+
+    f['/A/data'].shape # (N,), only single dimension datasets
+    f['/B/data'].shape # (M,)
+
+Now, let's say there are references between the two datasets ()::
+
+    /A/ref/B/ref
+    /A/ref/B/ref_region
+    /B/ref/A/ref_region
+
+In particular, we've created references from ``A->B`` so the ``../ref`` is stored
+(by convention) at ``/A/ref/B/ref``. This ``../ref`` dataset is 2D of shape ``(L,2)``
+where ``L`` is not necessarily equal to ``N`` or ``M`` and it contains indices into
+each of the corresponding datasets. By convention, index 0 is the "parent"
+dataset (``A``) and index 1 is the "child" dataset (``B``)::
+
+    f['/A/ref/B/ref'].shape # (L,2)
+    f['/A/ref/B/ref'][:,0] # indices into f['/A/data']
+    f['/A/ref/B/ref'][:,1] # indices into f['/B/data']
+
+    linked_a = f['/A/data'][:][ f['/A/ref/B/ref'][:,0] ] # data from A that can be linked to dataset B (note that you must load the dataset before the fancy indexing can be applied)
+    linked_b = f['/B/data'][:][ f['/A/ref/B/ref'][:,1] ] # data from B that can be linked to dataset A
+    linked_a.shape == linked_b.shape # (L,)
+
+Converting this into a dataset that can be broadcast back into either the ``A`` or
+``B`` shape is facilitated with a helper de-referencing function::
+
+    from h5flow.data import dereference
+
+    b2a = dereference(
+        slice(0, 1000),     # indices of A to load references for, shape: (n,)
+        f['/A/ref/B/ref'],  # references to use, shape: (L,)
+        f['/B/data']        # dataset to load, shape: (M,)
+        )
+    b2a.shape # (n,l), where l is the max number of B items associated with a row in A
+    b2a.dtype == f['/B/data'].dtype # True!
+
+    b_sum = b2a.sum(axis=-1) # use numpy masked array interface to operate on the b2a array
+    b_sum.shape # (n,), data can be broadcast back onto your selected indices
+
+And inverse relationships can be found by redefining the "ref_direction":::
+
+    a2b = dereference(
+        slice(0, 250),      # indices of B to load references for, shape: (m,)
+        f['/A/ref/B/ref'],  # references to use, same as before, shape: (L,)
+        f['/A/data'],       # dataset to load, shape: (N,)
+        ref_direction = (1,0) # now use references from 1->0 (B->A) [default is (0,1)]
+        )
+    a2b.shape # (m,q), where q is the max number of A items associated with a row in B
+    a2b.dtype == f['/A/data'].dtype # True!
+
+This works just fine - until you start needing to keep track of a very large
+number of references (~50000). In that case, we use the special
+``region`` (or ``../ref_region`` as it is called in the HDF5 file) dataset / array
+to facilitate only partially loading from the reference dataset::
+
+    b2a_subset = dereference(
+        slice(0, 1000)      # indices of A to load references for, shape: (n,)
+        f['/A/ref/B/ref'],  # references to use, shape: (L,)
+        f['/B/data'],       # dataset to load, shape: (M,)
+        region = f['/A/ref/B/ref_region'] # lookup regions in references, shape: (N,)
+        )
+    b2a_subset == b2a # same result as before, but internally this is handled in a much more efficient manner
+
+    %timeit dereference(0, f['/A/ref/B/ref'], f['/B/data']) # runtime: max(100ns * len(f['/A/ref/B/ref']), 1ms)
+    %timeit dereference(0, f['/A/ref/B/ref'], f['/B/data'], f['/A/ref/B/ref_region']) # runtime: ~5ms
 
 h5flow workflow
 ===============
@@ -191,6 +289,41 @@ with any desired parameters at the top level within the yaml file::
     dummy_stage1:
         classname: OtherDummyStage
 
+You can also specify specific datasets to load that is linked to the current
+loop dataset with the ``requires`` field::
+
+    dummy_stage_requires:
+        classname: DummyStage
+        requires:
+            - <path to a dataset that has source <-> dset references>
+            - <path to a second dataset with source <-> dset references>
+
+This will load a ``numpy`` masked array into the ``cache`` under a key of the
+same path.
+
+You can specify complex linking paths to load data from references to references
+(or references to references to references ...) by specifying a path and a
+name:
+
+    dummy_stage_complex_requires:
+        classname: DummyStage
+        requires:
+            - name: <name to use in the cache>
+              path: [<path to first dataset>, <path to second dataset>, ...]
+
+which will load the data at ``source -> <first dataset> -> <second dataset>``.
+
+Finally, you can also indicate if you just want to load an index into the final
+dataset (rather than the data) with the ``index_only`` flag::
+
+    dummy_stage_index_requires:
+        classname: DummyStage
+        requires:
+            - name: <name to use in cache>
+              path: [<first dataset>, <second dataset>]
+              index_only: True
+
+
 writing an ``H5FlowStage``
 ==========================
 
@@ -250,4 +383,3 @@ writing an ``H5FlowGenerator``
 ==============================
 
 I haven't written this section yet...
-

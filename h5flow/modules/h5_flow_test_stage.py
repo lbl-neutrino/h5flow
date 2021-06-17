@@ -30,9 +30,9 @@ class H5FlowTestStage(H5FlowStage):
     def run(self, source_name, source_slice, cache):
         logging.info(f'source_name: {source_name}')
         logging.info(f'source_slice: {source_slice}')
-        logging.info('cache item lengths:')
+        logging.info('cache items:')
         for key,val in cache.items():
-            logging.info(f'\t{key}: {len(val)}')
+            logging.info(f'\t{key} ({val.dtype.kind}{val.dtype.shape if val.dtype.shape else ""}): {val.shape}')
 
         super(H5FlowTestStage,self).run(source_name, source_slice, cache)
 

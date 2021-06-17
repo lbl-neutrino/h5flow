@@ -1,5 +1,7 @@
 import h5py
 import numpy as np
+import numpy.ma as ma
+import numpy.lib.recfunctions as rfn
 import shutil
 import os
 from mpi4py import MPI
@@ -7,6 +9,8 @@ from tqdm import tqdm
 import logging
 import subprocess
 import time
+
+from ..data.lib import dereference
 
 from ..data import H5FlowDataManager
 from ..modules import get_class
@@ -114,7 +118,7 @@ class H5FlowManager(object):
                 classname=args.get('classname'),
                 name=name,
                 data_manager=self.data_manager,
-                requires=args.get('requires',None),
+                requires=self.format_requirements(args.get('requires',list())),
                 **args.get('params',dict()))
             for name,args in zip(stage_names, stage_args)
             ]
@@ -126,6 +130,42 @@ class H5FlowManager(object):
             classname='H5FlowDatasetLoopGenerator',
             dset_name=source_name
             )
+
+    def format_requirements(self, requirements):
+        '''
+            Converts list from the "requires" configuration option into an
+            list of dicts with::
+
+                name: name of object to place in cache
+                path: list of reference datasets (parent, child) to load for this requirement
+                index_only: boolean if dataset should only load reference indices rather than data
+
+        '''
+        req = []
+        for r in requirements:
+            if isinstance(r, str):
+                req.append(dict(
+                    name= r,
+                    path= [r],
+                    index_only= False
+                    ))
+            elif isinstance(r,dict):
+                d = dict(name=r['name'])
+                if 'path' in r:
+                    if isinstance(r['path'],str):
+                        d['path'] = [r['path']]
+                    elif isinstance(r['path'],list):
+                        d['path'] = r['path']
+                    else:
+                        raise ValueError(f'Unrecognized path specification in {r}')
+                else:
+                    d['path'] = [d['name']]
+                d['index_only'] = r['index_only'] if 'index_only' in r else False
+                req.append(d)
+            else:
+                raise ValueError(f'Unrecognized requirement {r}')
+        return req
+
 
     def init(self):
         '''
@@ -150,11 +190,12 @@ class H5FlowManager(object):
         '''
 
         loop_gen = tqdm(self.generator) if self.rank == 0 else self.generator
+        stage_requirements = [[r for stage in self.stages[:i+1] for r in stage.requires] for i in range(len(self.stages))]
         for chunk in loop_gen:
             logging.debug(f'run on {self.generator.dset_name} chunk: {chunk}')
             cache = dict()
-            for stage in self.stages:
-                stage.update_cache(cache, self.generator.dset_name, chunk)
+            for i, (stage, requirements) in enumerate(zip(self.stages, stage_requirements)):
+                self.update_cache(cache, self.generator.dset_name, chunk, requirements)
                 logging.debug(f'run stage {stage.name} source: {self.generator.dset_name} chunk: {chunk} cache contains {len(cache)} objects')
                 stage.run(self.generator.dset_name, chunk, cache)
         self.comm.barrier()
@@ -184,7 +225,81 @@ class H5FlowManager(object):
             tempfile = os.path.join(os.path.dirname(self.data_manager.filepath), '.temp-{}.h5'.format(time.time()))
             subprocess.run(['h5repack', self.data_manager.filepath, tempfile])
             os.replace(tempfile, self.data_manager.filepath)
+            os.remove(tempfile)
         self.comm.barrier()
+
+    def update_cache(self, cache, source_name, source_slice, requirements):
+        '''
+            Load and dereference "required" data associated with a given source
+            - first loads the data subset of ``source_name`` specified by the
+            ``source_slice``. Then loops over the specification dicts in ``self.requires``
+            and loads data from references found in `'path'`.
+
+            Called automatically once per loop, just before calling ``run``.
+
+            Only loads data to the cache if it is not already present.
+
+            :param cache: ``dict`` cache to update
+
+            :param source_name: a path to the source dataset group
+
+            :param source_slice: a 1D slice into the source dataset
+
+        '''
+        required_names = [r['name'] for r in requirements]
+
+        for name in list(cache.keys()).copy():
+            if name not in required_names and name != source_name:
+                del cache[name]
+
+        if source_name not in cache:
+            cache[source_name] = self.data_manager.get_dset(source_name)[source_slice]
+
+        for i,linked_name in enumerate(required_names):
+            if linked_name not in cache:
+                cache[linked_name] = self.load_requirement(requirements[i], source_name, source_slice)
+
+    def load_requirement(self, req, source_name, source_slice):
+        '''
+            Loads a requirement specified by::
+
+                path: list of references to traverse
+                index_only: True to load only indices and not data
+
+        '''
+        path = req['path']
+        index_only = req['index_only']
+
+        sel = np.array(np.r_[source_slice])
+        mask = np.zeros_like(sel, dtype=bool)
+        sel = ma.array(sel, mask=mask)
+        shape = (len(sel),)
+        dref = None
+        for i,(p,c) in enumerate(zip([source_name]+path[:-1], path)):
+            dset = self.data_manager.get_dset(c)
+            ref, ref_dir = self.data_manager.get_ref(p,c)
+            reg = self.data_manager.get_ref_region(p,c)
+
+            dref = dereference(sel.data.ravel(), ref, dset, region=reg,
+                mask=mask.ravel(), ref_direction=ref_dir,
+                indices_only=True if i != len(path)-1 else index_only)
+            shape += dref.shape[-1:]
+
+            mask = np.expand_dims(mask, axis=-1) | \
+                (rfn.structured_to_unstructured(dref.mask).any(axis=-1).reshape(shape) \
+                if dref.mask.dtype.kind == 'V' else dref.mask.reshape(shape))
+            dref = ma.array(dref.data.reshape(shape), mask=mask)
+
+            if i != len(path)-1:
+                sel = dref
+
+        return dref
+
+
+
+
+
+
 
 
 

@@ -2,15 +2,14 @@
 
 flow:
   source: input # uncomment to use the example generator
-  # source: 'input/random' # uncomment to loop over an existing dataset
-  stages: [example_stage0, example_stage1]
-  drop: ['input/random/data']
+  # source: 'input/index' # uncomment to loop over an existing dataset
+  stages: [example_stage0, example_stage1, print]
+  drop: []
 
 input:
   classname: ExampleGenerator
-  dset_name: 'input/random'
+  dset_name: 'input/index'
   params:
-    max_value: 256
     chunk_size: 1024
 
 example_stage0:
@@ -21,7 +20,16 @@ example_stage0:
 example_stage1:
   classname: ExampleStage
   requires:
-      - 'example_stage0/example'
+      - 'example_stage0/example' # load simple input/index -> example_stage0/example references
+
+      - name: 'example_stage0/example_idcs' # load indices as well (@example_stage0/example_idcs)
+        path: 'example_stage0/example'
+        index_only: True
+
+      - name: 'input/index_once_referred' # load input -> example_stage0 -> input references
+        path: ['example_stage0/example', 'input/index']
   params:
     output_dset: 'example_stage1/example'
 
+print: # print the contents of the cache if in verbose mode
+  classname: H5FlowTestStage

@@ -96,30 +96,3 @@ class H5FlowStage(object):
 
         '''
         pass
-
-    def update_cache(self, cache, source_name, source_slice):
-        '''
-            Load and dereference "required" data associated with a given source
-            - first loads the data subset of ``source_name`` specified by the
-            ``source_slice``. Then loops over the datasets in ``self.requires``
-            and loads data from ``source_name -> required_name`` references.
-            Called automatically once per loop, just before calling ``run``.
-
-            Only loads data to the cache if it is not already present
-
-            :param cache: ``dict`` cache to update
-
-            :param source_name: a path to the source dataset group
-
-            :param source_slice: a 1D slice into the source dataset
-
-        '''
-        if source_name not in cache:
-            cache[source_name] = self.data_manager.get_dset(source_name)[source_slice]
-        for linked_name in self.requires:
-            if linked_name not in cache:
-                linked_dset = self.data_manager.get_dset(linked_name)
-                refs = self.data_manager.get_ref(source_name, linked_name)[source_slice]
-                refs_valid = self.data_manager.get_ref_valid(source_name, linked_name)[source_slice]
-                cache[linked_name] = [linked_dset[ref] if valid else np.empty((0,), dtype=linked_dset.dtype) for ref,valid in zip(refs, refs_valid)]
-

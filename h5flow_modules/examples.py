@@ -6,7 +6,6 @@ class ExampleGenerator(H5FlowGenerator):
     class_version = '0.0.0'
 
     # best practice is to declare default values as class attributes
-    default_max_value = 2**32-1
     default_chunk_size = 1024
     default_iterations = 10
 
@@ -14,7 +13,6 @@ class ExampleGenerator(H5FlowGenerator):
         super(ExampleGenerator,self).__init__(**params)
 
         # get parameters from the params list
-        self.max_value = params.get('max_value', self.default_max_value)
         self.chunk_size = params.get('chunk_size', self.default_chunk_size)
 
         # prepare anything needed for the loop
@@ -33,7 +31,6 @@ class ExampleGenerator(H5FlowGenerator):
         self.data_manager.set_attrs(self.dset_name,
             classname=self.classname,
             class_version=self.class_version,
-            max_value=self.max_value,
             chunk_size=self.chunk_size,
             end_position=self.end_position
             )
@@ -44,9 +41,10 @@ class ExampleGenerator(H5FlowGenerator):
             return H5FlowGenerator.EMPTY
         self.iteration += 1
 
-        # just append random data
+        # just append data equivalent to the current index in the file
         next_slice = self.data_manager.reserve_data(self.dset_name, self.chunk_size)
-        self.data_manager.write_data(self.dset_name, next_slice, np.random.randint(self.max_value, size=self.chunk_size))
+        data = np.arange(next_slice.start, next_slice.stop)
+        self.data_manager.write_data(self.dset_name, next_slice, data)
 
         # return slice into newly added data
         return next_slice
@@ -71,10 +69,9 @@ class ExampleStage(H5FlowStage):
             )
 
         # then set up any new datasets that will be added (including references)
-        dtype = self.data_manager.get_dset(source_name).dtype
-        self.data_manager.create_dset(self.output_dset, dtype=dtype)
-        self.data_manager.create_ref(self.output_dset, source_name)
-        self.data_manager.create_ref(source_name, self.output_dset)
+        dtype = self.data_manager.get_dset(source_name).dtype # get the dtype of an existing dataset
+        self.data_manager.create_dset(self.output_dset, dtype=dtype) # create a new dataset
+        self.data_manager.create_ref(source_name, self.output_dset) # create a new reference table (source -> output)
 
     def run(self, source_name, source_slice, cache):
         # manipulate data from cache
@@ -90,15 +87,10 @@ class ExampleStage(H5FlowStage):
         self.data_manager.write_data(self.output_dset, new_slice, data)
 
         # To add references to the output file:
-        #  1. reserve the same source data region in the source reference dataset
-        self.data_manager.reserve_ref(source_name, self.output_dset, source_slice)
-        #  2. write 1:1 old -> new references
-        ref = range(new_slice.start, new_slice.stop)
-        self.data_manager.write_ref(source_name, self.output_dset, source_slice, ref)
-
-        # To add bi-directional references to the output file:
-        #  1. reserve the same data region in the output reference dataset
-        self.data_manager.reserve_ref(self.output_dset, source_name, new_slice)
-        #  2. write 1:1 new -> old references
-        ref = range(source_slice.start, source_slice.stop)
-        self.data_manager.write_ref(self.output_dset, source_name, new_slice, ref)
+        #  1. create an (N,2) array with parent->child indices (this does parent idx->0-10 child index)
+        parent_idcs = np.arange(source_slice.start, source_slice.stop).reshape(-1,1,1)
+        child_idcs = np.clip(np.arange(new_slice.start, new_slice.start+10).reshape(1,-1,1) + parent_idcs - source_slice.start,0,new_slice.stop-1)
+        parent_idcs, child_idcs = np.broadcast_arrays(parent_idcs, child_idcs)
+        ref = np.unique(np.concatenate((parent_idcs, child_idcs), axis=-1).reshape(-1,2), axis=0) # reshape to (parent, child), and only use unique references (repeats can be used)
+        #  2. then write them into the file (no space reservation needed)
+        self.data_manager.write_ref(source_name, self.output_dset, ref)

@@ -75,10 +75,8 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
         if self.chunk_size == 'auto':
             # in auto mode, use the default chunk size in the hdf5 file
             self.chunk_size = dset.chunks[0]
-            # sel = slice(self.start_position, self.end_position)
-            # self.slices = [sl[0] for sl in dset.iter_chunks(sel=sel)][self.rank::self.size]
 
-        # in manual mode, each process grabs `chunk_size` chunks from the file
+        # in manual mode, each process grabs `chunk_size` rows from the file
         start = self.rank * self.chunk_size + self.start_position
         end = self.end_position
         r = range(start, end, self.size * self.chunk_size)
