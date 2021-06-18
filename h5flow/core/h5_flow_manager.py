@@ -4,11 +4,14 @@ import numpy.ma as ma
 import numpy.lib.recfunctions as rfn
 import shutil
 import os
-from mpi4py import MPI
 from tqdm import tqdm
 import logging
 import subprocess
 import time
+
+from .. import H5FLOW_MPI
+if H5FLOW_MPI:
+    from mpi4py import MPI
 
 from ..data.lib import dereference
 
@@ -35,9 +38,9 @@ class H5FlowManager(object):
 
     '''
     def __init__(self, config, output_filename, input_filename=None, start_position=None, end_position=None):
-        self.comm = MPI.COMM_WORLD
-        self.rank = self.comm.Get_rank()
-        self.size = self.comm.Get_size()
+        self.comm = MPI.COMM_WORLD if H5FLOW_MPI else None
+        self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
+        self.size = self.comm.Get_size() if H5FLOW_MPI else 1
 
         self.drop_list = config.get('flow').get('drop',list())
 
@@ -50,7 +53,8 @@ class H5FlowManager(object):
         # set up flow stages
         self.configure_flow(config)
 
-        self.comm.barrier()
+        if H5FLOW_MPI:
+            self.comm.barrier()
 
     def configure_data_manager(self, output_filename, config):
         '''
@@ -177,7 +181,8 @@ class H5FlowManager(object):
         for stage in self.stages:
             logging.debug(f'init stage {stage.name} source: {self.generator.dset_name}')
             stage.init(self.generator.dset_name)
-        self.comm.barrier()
+        if H5FLOW_MPI:
+            self.comm.barrier()
 
     def run(self):
         '''
@@ -198,7 +203,8 @@ class H5FlowManager(object):
                 self.update_cache(cache, self.generator.dset_name, chunk, requirements)
                 logging.debug(f'run stage {stage.name} source: {self.generator.dset_name} chunk: {chunk} cache contains {len(cache)} objects')
                 stage.run(self.generator.dset_name, chunk, cache)
-        self.comm.barrier()
+        if H5FLOW_MPI:
+            self.comm.barrier()
 
     def finish(self):
         '''
@@ -209,24 +215,28 @@ class H5FlowManager(object):
         '''
         logging.debug(f'finish generator')
         self.generator.finish()
-        self.comm.barrier()
+        if H5FLOW_MPI:
+            self.comm.barrier()
         for stage in self.stages:
             logging.debug(f'finish stage {stage.name} source: {self.generator.dset_name}')
             stage.finish(self.generator.dset_name)
-        self.comm.barrier()
+        if H5FLOW_MPI:
+            self.comm.barrier()
 
         logging.debug(f'close data manager')
         for drop in self.drop_list:
             self.data_manager.delete(drop)
         self.data_manager.close_file()
-        self.comm.barrier()
+        if H5FLOW_MPI:
+            self.comm.barrier()
         if len(self.drop_list) and self.rank == 0:
             # repacks the hdf5 file to recover space from dropped datasets
             tempfile = os.path.join(os.path.dirname(self.data_manager.filepath), '.temp-{}.h5'.format(time.time()))
             subprocess.run(['h5repack', self.data_manager.filepath, tempfile])
             os.replace(tempfile, self.data_manager.filepath)
             os.remove(tempfile)
-        self.comm.barrier()
+        if H5FLOW_MPI:
+            self.comm.barrier()
 
     def update_cache(self, cache, source_name, source_slice, requirements):
         '''

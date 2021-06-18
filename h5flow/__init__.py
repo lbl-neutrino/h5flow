@@ -4,7 +4,12 @@ import yaml
 import sys
 import logging
 from yaml import Loader
-from mpi4py import MPI
+try:
+    from mpi4py import MPI
+    H5FLOW_MPI = True
+except:
+    logging.warning('Error loading mpi4py - assuming single-threaded')
+    H5FLOW_MPI = False
 
 from .core import H5FlowManager
 
@@ -25,7 +30,7 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
         :param verbose: ``int``, verbosity level (``0 = warnings only``, ``1 = info``, ``2 = debug``)
 
     '''
-    rank = MPI.COMM_WORLD.Get_rank()
+    rank = MPI.COMM_WORLD.Get_rank() if H5FLOW_MPI else 0
 
     log_level = { 0:'WARNING', 1:'INFO', 2:'DEBUG' }[verbose]
     logging.basicConfig(format=f'%(asctime)s (r{rank}) %(module)s.%(funcName)s[l%(lineno)d] %(levelname)s : %(message)s', level=log_level)
