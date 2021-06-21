@@ -86,10 +86,8 @@ between datasets are expected to be stored alongside the parent dataset::
     /<dataset1_path>/ref/<dataset0_path>/ref # references from dataset1 -> dataset0
     ...
 
-with the same dimensions as the parent dataset.
-
 To facilitate fast + parallel read/writes there is a companion structured
-dataset `ref_region` at the corresponding position as the `ref` dataset that
+dataset ``ref_region`` at the corresponding position as the ``ref`` dataset that
 indicates where to look in the reference dataset for the corresponding row.
 E.g.::
 
@@ -99,8 +97,8 @@ E.g.::
     /<dataset0_path>/ref/<dataset2_path>/ref # references from dataset0 -> dataset2 (and back)
     /<dataset0_path>/ref/<dataset2_path>/ref_region # regions for dataset0 -> dataset2 reference
 
-The `.../ref_region` datasets are a 1D structured array with fields `'start': int`
-and `'stop': int`. These represent the min and max indices of the `.../ref` array
+The ``.../ref_region`` datasets are a 1D structured array with fields ``'start': int``
+and ``'stop': int``. These represent the min and max indices of the ``.../ref`` array
 that contain the corresponding index. So for example::
 
     data0 = np.array([0, 1, 2])
@@ -128,7 +126,7 @@ These must be single dimensional arrays with either a simple or structured type:
     f['/A/data'].shape # (N,), only single dimension datasets
     f['/B/data'].shape # (M,)
 
-Now, let's say there are references between the two datasets ()::
+Now, let's say there are references between the two datasets::
 
     /A/ref/B/ref
     /A/ref/B/ref_region
