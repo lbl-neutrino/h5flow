@@ -4,11 +4,12 @@ import yaml
 import sys
 import logging
 from yaml import Loader
+
 try:
     from mpi4py import MPI
     H5FLOW_MPI = True
-except:
-    logging.warning('Error loading mpi4py - assuming single-threaded')
+except Exception as e:
+    logging.warning(f'Running without mpi4py because {e}')
     H5FLOW_MPI = False
 
 from .core import H5FlowManager
@@ -82,5 +83,6 @@ def main():
     parser.add_argument('--start_position','-s', type=int, default=None, help='''start position within source dset (for partial file processing)''')
     parser.add_argument('--end_position','-e', type=int, default=None, help='''end position within source dset (for partial file processing)''')
     args = parser.parse_args()
+    
     run(**vars(args))
 
