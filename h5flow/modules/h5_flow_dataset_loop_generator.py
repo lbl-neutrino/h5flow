@@ -3,6 +3,7 @@ import shutil
 import logging
 import h5py
 
+from h5flow import H5FLOW_MPI
 from h5flow.core import H5FlowGenerator
 from h5flow.data import H5FlowDataManager
 
@@ -87,5 +88,5 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
         if self.rank == 0 and f0 != f1:
             logging.info(f'copy {f0} -> {f1}')
             shutil.copy(f0, f1)
-        if block:
+        if block and H5FLOW_MPI:
             self.comm.barrier()

@@ -66,6 +66,16 @@ in the event that one of the above doesn't work for your application::
     python -m h5flow <args>
     run_h5flow.py <args>
 
+You can also use ``h5flow`` without mpi4py by checking the global ``H5FLOW_MPI``
+variable::
+
+    from h5flow import H5FLOW_MPI
+    if H5FLOW_MPI:
+        # mpi-compatible code, e.g.
+        from mpi4py import MPI
+    else:
+        # non-mpi compatible code
+
 h5flow hdf5 structure
 =====================
 
