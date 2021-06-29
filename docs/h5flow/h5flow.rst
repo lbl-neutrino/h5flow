@@ -1,5 +1,12 @@
 .. include:: ../README.rst
 
+Examples
+========
+
+.. toctree::
+
+   h5flow.examples
+
 Reference
 =========
 

@@ -30,6 +30,7 @@ author = 'Peter Madigan'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
     'recommonmark'
 ]
 
