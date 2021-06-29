@@ -325,7 +325,7 @@ same path.
 
 You can specify complex linking paths to load data from references to references
 (or references to references to references ...) by specifying a path and a
-name:
+name::
 
     dummy_stage_complex_requires:
         classname: DummyStage
