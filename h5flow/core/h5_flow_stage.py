@@ -1,11 +1,14 @@
 import h5py
 import numpy as np
-from mpi4py import MPI
 import logging
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
+from .. import H5FLOW_MPI
+if H5FLOW_MPI:
+    from mpi4py import MPI
+
+comm = MPI.COMM_WORLD if H5FLOW_MPI else None
+rank = comm.Get_rank() if H5FLOW_MPI else 0
+size = comm.Get_size() if H5FLOW_MPI else 1
 
 class H5FlowStage(object):
     '''
@@ -16,7 +19,7 @@ class H5FlowStage(object):
          - ``class_version``: a ``str`` version number (``'major.minor.fix'``, default = ``'0.0.0'``)
          - ``data_manager``: an ``H5FlowDataManager`` instance used to access the output file
          - ``requires``: a list of dataset names to load when calling ``H5FlowStage.load()``
-         - ``comm``: MPI world communicator (if needed)
+         - ``comm``: MPI world communicator (if needed, else ``None``)
          - ``rank``: MPI group rank
          - ``size``: MPI group size
 
@@ -62,9 +65,9 @@ class H5FlowStage(object):
         self.data_manager = data_manager
         self.requires = requires if requires is not None else list()
 
-        self.comm = MPI.COMM_WORLD
-        self.rank = self.comm.Get_rank()
-        self.size = self.comm.Get_size()
+        self.comm = MPI.COMM_WORLD if H5FLOW_MPI else None
+        self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
+        self.size = self.comm.Get_size() if H5FLOW_MPI else 1
 
     def init(self, source_name):
         '''
