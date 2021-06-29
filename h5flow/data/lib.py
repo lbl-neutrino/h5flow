@@ -92,13 +92,21 @@ def dereference(sel, ref, data, region=None, mask=None, ref_direction=(0,1), ind
             return [np.empty(0, data.dtype) for _ in range(n_elem)]
     ref_offset = np.min(region[region_valid]['start']) if region is not None else 0
     ref_sel = slice(ref_offset, int(np.max(region[region_valid]['stop']))) if region is not None else slice(ref_offset,len(ref))
+    ref = ref[ref_sel]
 
-    ref = ref[ref_sel] # load reference region
+    # if no valid references, return
+    if len(ref) == 0:
+        if as_masked:
+            return ma.array(np.empty((n_elem,1), dtype=data.dtype), mask=True)
+        else:
+            return [np.empty(0, data.dtype) for _ in range(n_elem)]
 
+    # load relevant data
     dset_offset = np.min(ref[:,ref_direction[1]])
     dset_sel = slice(dset_offset, int(np.max(ref[:,ref_direction[1]])+1))
     dset = data[dset_sel] # load child dataset region
 
+    # create a region array, if one was not given
     if region is None:
         region = np.zeros(len(sel_idcs), dtype=ref_region_dtype)
         region['start'] = ref_sel.start
@@ -119,30 +127,40 @@ def dereference(sel, ref, data, region=None, mask=None, ref_direction=(0,1), ind
                 ]
             return data
 
-    ref_mask = np.isin(ref[:,ref_direction[0]], sel_idcs) # only use relevant references
 
-    uniq, counts = np.unique(ref[ref_mask,ref_direction[0]], return_counts=True) # get number of references per parent
-    reordering = np.argsort(uniq) # sort references by parent index (used for filling the correct slots)
+    # the rest of this is index manipulation to convert from sel -> ref -> data
+    # first using only the unique references and then casting it back into the
+    # original selection
+    ref_mask = np.isin(ref[:,ref_direction[0]], sel_idcs)
+
+    # only use references that are relevant to the selection
+
+    # get the number of references per parent and rearrange so that references are in ordered by parent
+    uniq, counts = np.unique(ref[ref_mask,ref_direction[0]], return_counts=True)
+    reordering = np.argsort(uniq)
     uniq, counts = uniq[reordering], counts[reordering]
     max_counts = np.max(counts)
 
-    # first fill a subarray consisting of unique elements that were requested (shape: (len(uniq_sel), max_counts) )
-    uniq_sel, uniq_inv = np.unique(sel_idcs, return_inverse=True) # get mapping from unique reference parent -> selection index
-    _,uniq_sel_idcs,uniq2uniq_sel_idcs = np.intersect1d(uniq_sel, uniq, assume_unique=False, return_indices=True) # map unique selection parent -> unique reference parent
+    # now, we'll fill a subarray consisting of unique elements that were requested (shape: (len(uniq_sel), max_counts) )
 
-    # set up arrays for unique selection parents
+    # get mapping from unique selection back into the selection
+    uniq_sel, uniq_inv = np.unique(sel_idcs, return_inverse=True)
+    # then get a mapping from the unique selection into the unique reference parents
+    _,uniq_sel_idcs,uniq2uniq_sel_idcs = np.intersect1d(uniq_sel, uniq, assume_unique=False, return_indices=True)
+
+    # set up subarrays for unique selection
     shape = (len(uniq_sel), max_counts) + dset.shape[1:]
     condensed_data = np.zeros(shape, dtype=dset.dtype) if not indices_only \
         else np.zeros(shape, dtype=ref.dtype)
     condensed_mask = np.zeros(shape, dtype=bool)
 
-    # block off and fill slots for unique selection
+    # block off and prepare slots for unique selection
     condensed_mask[uniq_sel_idcs] = np.arange(condensed_data.shape[1]).reshape(1,-1) < counts[uniq2uniq_sel_idcs].reshape(-1,1)
     view_dtype = np.dtype([('ref0',ref.dtype),('ref1',ref.dtype)])
     sort_ref = np.argsort(ref[ref_mask].view(view_dtype), axis=0,
         order=[view_dtype.names[ref_direction[0]], view_dtype.names[ref_direction[1]]]
         ) # arrange by parent (then by child)
-    # fill slots
+    # and fill slots
     if indices_only:
         np.place(condensed_data, mask=condensed_mask, vals=ref[ref_mask,ref_direction[1]][sort_ref])
     else:

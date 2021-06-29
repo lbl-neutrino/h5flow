@@ -86,10 +86,8 @@ between datasets are expected to be stored alongside the parent dataset::
     /<dataset1_path>/ref/<dataset0_path>/ref # references from dataset1 -> dataset0
     ...
 
-with the same dimensions as the parent dataset.
-
 To facilitate fast + parallel read/writes there is a companion structured
-dataset `ref_region` at the corresponding position as the `ref` dataset that
+dataset ``ref_region`` at the corresponding position as the ``ref`` dataset that
 indicates where to look in the reference dataset for the corresponding row.
 E.g.::
 
@@ -99,8 +97,8 @@ E.g.::
     /<dataset0_path>/ref/<dataset2_path>/ref # references from dataset0 -> dataset2 (and back)
     /<dataset0_path>/ref/<dataset2_path>/ref_region # regions for dataset0 -> dataset2 reference
 
-The `.../ref_region` datasets are a 1D structured array with fields `'start': int`
-and `'stop': int`. These represent the min and max indices of the `.../ref` array
+The ``.../ref_region`` datasets are a 1D structured array with fields ``'start': int``
+and ``'stop': int``. These represent the min and max indices of the ``.../ref`` array
 that contain the corresponding index. So for example::
 
     data0 = np.array([0, 1, 2])
@@ -128,15 +126,15 @@ These must be single dimensional arrays with either a simple or structured type:
     f['/A/data'].shape # (N,), only single dimension datasets
     f['/B/data'].shape # (M,)
 
-Now, let's say there are references between the two datasets ()::
+Now, let's say there are references between the two datasets::
 
     /A/ref/B/ref
     /A/ref/B/ref_region
     /B/ref/A/ref_region
 
-In particular, we've created references from ``A->B`` so the ``../ref`` is stored
+In particular, we've created references from ``A->B``, so the ``../ref`` is stored
 (by convention) at ``/A/ref/B/ref``. This ``../ref`` dataset is 2D of shape ``(L,2)``
-where ``L`` is not necessarily equal to ``N`` or ``M`` and it contains indices into
+where ``L`` is not necessarily equal to ``N`` or ``M`` and contains indices into
 each of the corresponding datasets. By convention, index 0 is the "parent"
 dataset (``A``) and index 1 is the "child" dataset (``B``)::
 
@@ -181,7 +179,7 @@ number of references (~50000). In that case, we use the special
 to facilitate only partially loading from the reference dataset::
 
     b2a_subset = dereference(
-        slice(0, 1000)      # indices of A to load references for, shape: (n,)
+        slice(0, 1000),      # indices of A to load references for, shape: (n,)
         f['/A/ref/B/ref'],  # references to use, shape: (L,)
         f['/B/data'],       # dataset to load, shape: (M,)
         region = f['/A/ref/B/ref_region'] # lookup regions in references, shape: (N,)
@@ -190,6 +188,30 @@ to facilitate only partially loading from the reference dataset::
 
     %timeit dereference(0, f['/A/ref/B/ref'], f['/B/data']) # runtime: max(100ns * len(f['/A/ref/B/ref']), 1ms)
     %timeit dereference(0, f['/A/ref/B/ref'], f['/B/data'], f['/A/ref/B/ref_region']) # runtime: ~5ms
+
+One feature of the dereferencing scheme is that it is relatively easy to follow
+references through many complex relationship. In particular, the ``mask`` and
+``indices_only`` arguments can be used to selectively load the references that
+are returned from one call to ``dereference`` in another::
+
+    a2b_ref = dereference(
+        slice(0, 1000),     # indices of A to load references for, shape: (n,)
+        f['/A/ref/B/ref'],  # references to use, shape: (L,)
+        f['/B/data'],       # dataset to load, shape: (M,)
+        region = f['/A/ref/B/ref_region'], # lookup regions in references, shape: (N,)
+        indices_only = True
+        )
+    a2b2c = dereference(
+        a2b_ref.ravel(), # convert b2a references into a 1D selection array, shape: (n*l,)
+        f['/B/ref/C/ref'], # now use B->C references, shape: (K,)
+        f['/C/data'], # and load C data, shape: (J,)
+        region = f['/B/ref/C/ref_region'], shape: (M,)
+        mask = a2b_ref.mask.ravel() # use the mask that comes along from the previous dereferencing, shape: (n*l,)
+    )
+    b2a2c.shape # (n*l,k), where k is the max number of a->c references
+    b2a2c.reshape(b2a_ref.shape,-1).shape # (n,l,k), broadcast-able back into a2b
+
+This can be repeated many times to access ``B -> A -> C -> D -> ...`` references.
 
 h5flow workflow
 ===============
