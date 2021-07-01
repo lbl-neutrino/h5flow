@@ -16,13 +16,13 @@ First, download this code::
 
 To setup a fresh conda environment::
 
-    conda create --name <env> --file environment.yml
+    conda env create --name <env> --file environment.yml
     conda activate <env>
     pip install .
 
 To update an existing environment::
 
-    conda update --name <env> --file environment.yml
+    conda env update --name <env> --file environment.yml
     conda activate <env>
     pip install .
 
