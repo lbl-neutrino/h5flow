@@ -66,12 +66,12 @@ def dereference_chain(sel, refs, data=None, regions=None, mask=None, ref_directi
 
     '''
     sel = np.r_[sel]
-    mask = np.zeros_like(sel, dtype=bool) | mask
+    mask = np.zeros_like(sel, dtype=bool) | (mask if mask else False)
     sel = ma.array(sel, mask=mask)
     shape = (len(sel),)
     dref = None
 
-    n_steps = len(refs)
+    nsteps = len(refs)
     for i in range(nsteps):
         dset = data if i == nsteps-1 else None
         ref = refs[i]
@@ -121,7 +121,7 @@ def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1)
     sel_idcs = np.r_[sel][~sel_mask] if sel_mask is not None else np.r_[sel]
     n_elem = len(sel_idcs) if sel_mask is None else len(sel_mask)
 
-    return_dtype = data.dtype if not indices_only else sel_idcs.dtype
+    return_dtype = data.dtype if not indices_only else ref.dtype
 
     if not len(sel_idcs) and n_elem:
         # special case for if there is nothing selected in the mask
