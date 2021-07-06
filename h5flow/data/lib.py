@@ -32,7 +32,70 @@ def print_data(grp):
     for n,d in l:
         print(n+' '*(max_length-len(n))+' '+str(d))
 
-def dereference(sel, ref, data, region=None, mask=None, ref_direction=(0,1), indices_only=False, as_masked=True):
+def dereference_chain(sel, refs, data=None, regions=None, mask=None, ref_directions=None, indices_only=False):
+    '''
+        Load a "chain" of references. Allows traversal of multiple layers of references,
+        e.g. for three datasets ``A``, ``B``, and ``C`` linked ``A->B->C``. One
+        can use a selection in ``A`` and load the ``C`` data associated with it.
+
+        Example usage::
+
+            sel = slice(0,100)
+            refs = [f['A/ref/B/ref'], f['C/ref/B/ref']]
+            ref_dirs = [(0,1), (1,0)]
+            data = f['C/data']
+            regions = [f['A/ref/B/ref_region'], f['B/ref/C/ref_region']]
+            mask = np.r_[sel] > 50
+
+            c_data = dereference_chain(sel, refs, data, regions=regions, mask=mask, ref_directions=ref_dirs)
+            c_data.shape # (100, max_a2b_assoc, max_b2c_assoc)
+
+        :param sel: iterable of indices, a slice, or an integer, see ``sel`` argument in ``dereference``
+
+        :param refs: a list of reference datasets to load, in order, see ``ref`` argument in ``dereference``
+
+        :param data: a dataset to load dereferenced data from, optional if ``indices_only=True``
+
+        :param regions: lookup table into ``refs`` for each selection, see ``region`` argument in ``dereference``
+
+        :param mask: a boolean mask into the first selection, true will not load the entry
+
+        :param ref_directions: intepretation of reference datasets, see ``ref_direction`` argument in ``dereference``
+
+        :param indices_only: flag to skip loading the data and instead just return indices into the final dataset
+
+        '''
+
+        sel = np.r_[sel]
+        mask = np.zeros_like(sel, dtype=bool) | mask
+        sel = ma.array(sel, mask=mask)
+        shape = (len(sel),)
+        dref = None
+
+        n_steps = len(refs)
+        for i in range(nsteps):
+            dset = data if i == nsteps-1 else None
+            ref = refs[i]
+            ref_dir = ref_directions[i] if ref_directions else (0,1) # default to (0,1)
+            reg = regions[i] if regions else None
+
+            dref = dereference(sel.data.ravel(), ref,
+                data=dset, region=reg,
+                mask=mask.ravel(), ref_direction=ref_dir,
+                indices_only=True if i != nsteps-1 else indices_only)
+            shape += dref.shape[-1:]
+
+            mask = np.expand_dims(mask, axis=-1) | \
+                (rfn.structured_to_unstructured(dref.mask).any(axis=-1).reshape(shape) \
+                if dref.mask.dtype.kind == 'V' else dref.mask.reshape(shape))
+            dref = ma.array(dref.data.reshape(shape), mask=mask)
+
+            if i != nsteps-1:
+                sel = dref
+
+        return dref
+
+
 def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1), indices_only=False, as_masked=True):
     '''
         Load ``data`` referred to by ``ref`` that corresponds to the desired
