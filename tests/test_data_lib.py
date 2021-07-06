@@ -25,7 +25,7 @@ def full_testfile(testfile):
     dm.create_ref('A', 'B')
     dm.create_ref('C', 'B')
 
-    data_a = np.arange(10)
+    data_a = np.arange(10*rank,10*(rank+1))
     data_b = 10*np.broadcast_to(np.expand_dims(data_a,-1),(10,10)) + np.expand_dims(np.arange(10),axis=0)
     data_c = 10*np.broadcast_to(np.expand_dims(data_b,-1),(10,10,10)) + np.expand_dims(np.arange(10),axis=0)
 
@@ -43,9 +43,9 @@ def full_testfile(testfile):
     ref = np.unique(np.c_[data_c.ravel(), np.broadcast_to(np.expand_dims(data_b,-1), data_c.shape).ravel()], axis=0)
     dm.write_ref('C','B',ref)
 
-    assert len(dm.fh['A/data']) == 10
-    assert len(dm.fh['B/data']) == 100
-    assert len(dm.fh['C/data']) == 1000
+    assert len(dm.fh['A/data']) == 10 * size
+    assert len(dm.fh['B/data']) == 100 * size
+    assert len(dm.fh['C/data']) == 1000 * size
 
     return dm.fh, ('A', 'B', 'C')
 
@@ -64,7 +64,6 @@ def test_dereference(full_testfile):
     ref = fh[f'{a}/ref/{b}/ref']
     dset = fh[f'{b}/data']
     region = fh[f'{a}/ref/{b}/ref_region']
-
 
     data_no_reg = dereference(sel, ref, dset)
 
