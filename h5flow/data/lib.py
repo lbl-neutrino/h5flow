@@ -64,36 +64,35 @@ def dereference_chain(sel, refs, data=None, regions=None, mask=None, ref_directi
 
         :param indices_only: flag to skip loading the data and instead just return indices into the final dataset
 
-        '''
+    '''
+    sel = np.r_[sel]
+    mask = np.zeros_like(sel, dtype=bool) | mask
+    sel = ma.array(sel, mask=mask)
+    shape = (len(sel),)
+    dref = None
 
-        sel = np.r_[sel]
-        mask = np.zeros_like(sel, dtype=bool) | mask
-        sel = ma.array(sel, mask=mask)
-        shape = (len(sel),)
-        dref = None
+    n_steps = len(refs)
+    for i in range(nsteps):
+        dset = data if i == nsteps-1 else None
+        ref = refs[i]
+        ref_dir = ref_directions[i] if ref_directions else (0,1) # default to (0,1)
+        reg = regions[i] if regions else None
 
-        n_steps = len(refs)
-        for i in range(nsteps):
-            dset = data if i == nsteps-1 else None
-            ref = refs[i]
-            ref_dir = ref_directions[i] if ref_directions else (0,1) # default to (0,1)
-            reg = regions[i] if regions else None
+        dref = dereference(sel.data.ravel(), ref,
+            data=dset, region=reg,
+            mask=mask.ravel(), ref_direction=ref_dir,
+            indices_only=True if i != nsteps-1 else indices_only)
+        shape += dref.shape[-1:]
 
-            dref = dereference(sel.data.ravel(), ref,
-                data=dset, region=reg,
-                mask=mask.ravel(), ref_direction=ref_dir,
-                indices_only=True if i != nsteps-1 else indices_only)
-            shape += dref.shape[-1:]
+        mask = np.expand_dims(mask, axis=-1) | \
+            (rfn.structured_to_unstructured(dref.mask).any(axis=-1).reshape(shape) \
+            if dref.mask.dtype.kind == 'V' else dref.mask.reshape(shape))
+        dref = ma.array(dref.data.reshape(shape), mask=mask)
 
-            mask = np.expand_dims(mask, axis=-1) | \
-                (rfn.structured_to_unstructured(dref.mask).any(axis=-1).reshape(shape) \
-                if dref.mask.dtype.kind == 'V' else dref.mask.reshape(shape))
-            dref = ma.array(dref.data.reshape(shape), mask=mask)
+        if i != nsteps-1:
+            sel = dref
 
-            if i != nsteps-1:
-                sel = dref
-
-        return dref
+    return dref
 
 
 def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1), indices_only=False, as_masked=True):
