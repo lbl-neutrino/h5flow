@@ -227,16 +227,16 @@ class H5FlowManager(object):
         for drop in self.drop_list:
             self.data_manager.delete(drop)
         self.data_manager.close_file()
-        if H5FLOW_MPI:
-            self.comm.barrier()
-        if len(self.drop_list) and self.rank == 0:
-            # repacks the hdf5 file to recover space from dropped datasets
-            tempfile = os.path.join(os.path.dirname(self.data_manager.filepath), '.temp-{}.h5'.format(time.time()))
-            subprocess.run(['h5repack', self.data_manager.filepath, tempfile])
-            os.replace(tempfile, self.data_manager.filepath)
-            os.remove(tempfile)
-        if H5FLOW_MPI:
-            self.comm.barrier()
+        # if H5FLOW_MPI:
+        #     self.comm.barrier()
+        # if len(self.drop_list) and self.rank == 0:
+        #     # repacks the hdf5 file to recover space from dropped datasets
+        #     tempfile = os.path.join(os.path.dirname(self.data_manager.filepath), '.temp-{}.h5'.format(time.time()))
+        #     subprocess.run(['h5repack', self.data_manager.filepath, tempfile])
+        #     os.replace(tempfile, self.data_manager.filepath)
+        #     os.remove(tempfile)
+        # if H5FLOW_MPI:
+        #     self.comm.barrier()
 
     def update_cache(self, cache, source_name, source_slice, requirements):
         '''
