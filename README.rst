@@ -218,10 +218,22 @@ are returned from one call to ``dereference`` in another::
         region = f['/B/ref/C/ref_region'], shape: (M,)
         mask = a2b_ref.mask.ravel() # use the mask that comes along from the previous dereferencing, shape: (n*l,)
     )
-    b2a2c.shape # (n*l,k), where k is the max number of a->c references
-    b2a2c.reshape(b2a_ref.shape,-1).shape # (n,l,k), broadcast-able back into a2b
+    a2b2c.shape # (n*l,k), where k is the max number of a->c references
+    a2b2c.reshape(b2a_ref.shape,-1).shape # (n,l,k), broadcast-able back into a2b
 
 This can be repeated many times to access ``B -> A -> C -> D -> ...`` references.
+
+An additional helper function ``dereference_chain`` is provided to make this easier.::
+
+    from h5flow.data import dereference_chain
+
+    sel = slice(0, 1000) # indices of A, shape: (n,)
+    refs = [f['/A/ref/B/ref'], f['/B/ref/C/ref']] # chain of references to load (A->B,B->C)
+    regions = [f['/A/ref/B/ref_region'], f['/B/ref/C/ref_region']] # lookup regions (for A and B)
+    ref_dir = [(0,1),(0,1)] # reference direction to use for each reference (defaults to (0,1))
+
+    a2b2c = dereference_chain(sel, refs, f['/C/data'], region=regions, ref_directions=ref_dir)
+    a2b2c.shape # (n,l,k)
 
 h5flow workflow
 ===============

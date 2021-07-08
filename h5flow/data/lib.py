@@ -32,7 +32,70 @@ def print_data(grp):
     for n,d in l:
         print(n+' '*(max_length-len(n))+' '+str(d))
 
-def dereference(sel, ref, data, region=None, mask=None, ref_direction=(0,1), indices_only=False, as_masked=True):
+def dereference_chain(sel, refs, data=None, regions=None, mask=None, ref_directions=None, indices_only=False):
+    '''
+        Load a "chain" of references. Allows traversal of multiple layers of references,
+        e.g. for three datasets ``A``, ``B``, and ``C`` linked ``A->B->C``. One
+        can use a selection in ``A`` and load the ``C`` data associated with it.
+
+        Example usage::
+
+            sel = slice(0,100)
+            refs = [f['A/ref/B/ref'], f['C/ref/B/ref']]
+            ref_dirs = [(0,1), (1,0)]
+            data = f['C/data']
+            regions = [f['A/ref/B/ref_region'], f['B/ref/C/ref_region']]
+            mask = np.r_[sel] > 50
+
+            c_data = dereference_chain(sel, refs, data, regions=regions, mask=mask, ref_directions=ref_dirs)
+            c_data.shape # (100, max_a2b_assoc, max_b2c_assoc)
+
+        :param sel: iterable of indices, a slice, or an integer, see ``sel`` argument in ``dereference``
+
+        :param refs: a list of reference datasets to load, in order, see ``ref`` argument in ``dereference``
+
+        :param data: a dataset to load dereferenced data from, optional if ``indices_only=True``
+
+        :param regions: lookup table into ``refs`` for each selection, see ``region`` argument in ``dereference``
+
+        :param mask: a boolean mask into the first selection, true will not load the entry
+
+        :param ref_directions: intepretation of reference datasets, see ``ref_direction`` argument in ``dereference``
+
+        :param indices_only: flag to skip loading the data and instead just return indices into the final dataset
+
+    '''
+    sel = np.r_[sel]
+    mask = np.zeros_like(sel, dtype=bool) | (mask if mask else False)
+    sel = ma.array(sel, mask=mask)
+    shape = (len(sel),)
+    dref = None
+
+    nsteps = len(refs)
+    for i in range(nsteps):
+        dset = data if i == nsteps-1 else None
+        ref = refs[i]
+        ref_dir = ref_directions[i] if ref_directions else (0,1) # default to (0,1)
+        reg = regions[i] if regions else None
+
+        dref = dereference(sel.data.ravel(), ref,
+            data=dset, region=reg,
+            mask=mask.ravel(), ref_direction=ref_dir,
+            indices_only=True if i != nsteps-1 else indices_only)
+        shape += dref.shape[-1:]
+
+        mask = np.expand_dims(mask, axis=-1) | \
+            (rfn.structured_to_unstructured(dref.mask).any(axis=-1).reshape(shape) \
+            if dref.mask.dtype.kind == 'V' else dref.mask.reshape(shape))
+        dref = ma.array(dref.data.reshape(shape), mask=mask)
+
+        if i != nsteps-1:
+            sel = dref
+
+    return dref
+
+
+def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1), indices_only=False, as_masked=True):
     '''
         Load ``data`` referred to by ``ref`` that corresponds to the desired
         positions specified in ``sel``.
@@ -41,7 +104,7 @@ def dereference(sel, ref, data, region=None, mask=None, ref_direction=(0,1), ind
 
         :param ref: a shape (N,2) ``h5py.Dataset`` or array of pairs of indices linking ``sel`` and ``data``
 
-        :param data: a ``h5py.Dataset`` or array to load dereferenced data from
+        :param data: a ``h5py.Dataset`` or array to load dereferenced data from, can be omitted if ``indices_only==True``
 
         :param region: a 1D ``h5py.Dataset`` or array with a structured array type of [('start','i8'), ('stop','i8')]; 'start' defines the earliest index within the ``ref`` dataset for each value in ``sel``, and 'stop' defines the last index + 1 within the ``ref`` dataset (optional). If a ``h5py.Dataset`` is used, the ``sel`` spec will be used to load data from the dataset (i.e. ``region[sel]``), otherwise ``len(sel) == len(region)`` and a 1:1 correspondence is assumed
 
@@ -58,15 +121,17 @@ def dereference(sel, ref, data, region=None, mask=None, ref_direction=(0,1), ind
     sel_idcs = np.r_[sel][~sel_mask] if sel_mask is not None else np.r_[sel]
     n_elem = len(sel_idcs) if sel_mask is None else len(sel_mask)
 
+    return_dtype = data.dtype if not indices_only else ref.dtype
+
     if not len(sel_idcs) and n_elem:
         # special case for if there is nothing selected in the mask
         if as_masked:
-            return ma.array(np.empty((n_elem,1), dtype=data.dtype), mask=True)
+            return ma.array(np.empty((n_elem,1), dtype=return_dtype), mask=True)
         else:
             return [np.empty(0, data.dtype) for _ in range(n_elem)]
     elif not len(sel_idcs):
         if as_masked:
-            return ma.array(np.empty((0,1), dtype=data.dtype), mask=True)
+            return ma.array(np.empty((0,1), dtype=return_dtype), mask=True)
         else:
             return []
 
@@ -87,9 +152,9 @@ def dereference(sel, ref, data, region=None, mask=None, ref_direction=(0,1), ind
     if not region is None and np.count_nonzero(region_valid) == 0:
         # special case for if there are no valid references
         if as_masked:
-            return ma.array(np.empty((n_elem,1), dtype=data.dtype), mask=True)
+            return ma.array(np.empty((n_elem,1), dtype=return_dtype), mask=True)
         else:
-            return [np.empty(0, data.dtype) for _ in range(n_elem)]
+            return [np.empty(0, return_dtype) for _ in range(n_elem)]
     ref_offset = np.min(region[region_valid]['start']) if region is not None else 0
     ref_sel = slice(ref_offset, int(np.max(region[region_valid]['stop']))) if region is not None else slice(ref_offset,len(ref))
     ref = ref[ref_sel]
@@ -97,14 +162,14 @@ def dereference(sel, ref, data, region=None, mask=None, ref_direction=(0,1), ind
     # if no valid references, return
     if len(ref) == 0:
         if as_masked:
-            return ma.array(np.empty((n_elem,1), dtype=data.dtype), mask=True)
+            return ma.array(np.empty((n_elem,1), dtype=return_dtype), mask=True)
         else:
-            return [np.empty(0, data.dtype) for _ in range(n_elem)]
+            return [np.empty(0, return_dtype) for _ in range(n_elem)]
 
     # load relevant data
     dset_offset = np.min(ref[:,ref_direction[1]])
     dset_sel = slice(dset_offset, int(np.max(ref[:,ref_direction[1]])+1))
-    dset = data[dset_sel] # load child dataset region
+    dset = data[dset_sel] if not indices_only else None # load child dataset region
 
     # create a region array, if one was not given
     if region is None:
@@ -149,9 +214,8 @@ def dereference(sel, ref, data, region=None, mask=None, ref_direction=(0,1), ind
     _,uniq_sel_idcs,uniq2uniq_sel_idcs = np.intersect1d(uniq_sel, uniq, assume_unique=False, return_indices=True)
 
     # set up subarrays for unique selection
-    shape = (len(uniq_sel), max_counts) + dset.shape[1:]
-    condensed_data = np.zeros(shape, dtype=dset.dtype) if not indices_only \
-        else np.zeros(shape, dtype=ref.dtype)
+    shape = (len(uniq_sel), max_counts)
+    condensed_data = np.zeros(shape, dtype=return_dtype)
     condensed_mask = np.zeros(shape, dtype=bool)
 
     # block off and prepare slots for unique selection

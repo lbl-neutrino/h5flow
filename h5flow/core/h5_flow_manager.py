@@ -13,7 +13,7 @@ from .. import H5FLOW_MPI
 if H5FLOW_MPI:
     from mpi4py import MPI
 
-from ..data.lib import dereference
+from ..data.lib import dereference_chain
 
 from ..data import H5FlowDataManager
 from ..modules import get_class
@@ -276,40 +276,20 @@ class H5FlowManager(object):
                 path: list of references to traverse
                 index_only: True to load only indices and not data
 
+            :param req: ``dict`` with items ``path : list of datasets`` and ``index_only : bool, true to only load index in to final dataset``. Loads a chain of references in a sequence of ``[source_name, *path]``
+
+            :param source_name: ``str`` base dataset to load
+
+            :param source_slice: ``slice`` into ``source_name`` to load
+
         '''
         path = req['path']
         index_only = req['index_only']
 
-        sel = np.array(np.r_[source_slice])
-        mask = np.zeros_like(sel, dtype=bool)
-        sel = ma.array(sel, mask=mask)
-        shape = (len(sel),)
-        dref = None
-        for i,(p,c) in enumerate(zip([source_name]+path[:-1], path)):
-            dset = self.data_manager.get_dset(c)
-            ref, ref_dir = self.data_manager.get_ref(p,c)
-            reg = self.data_manager.get_ref_region(p,c)
+        chain = zip([source_name]+path[:-1], path)
 
-            dref = dereference(sel.data.ravel(), ref, dset, region=reg,
-                mask=mask.ravel(), ref_direction=ref_dir,
-                indices_only=True if i != len(path)-1 else index_only)
-            shape += dref.shape[-1:]
+        data = self.data_manager.get_dset(path[-1])
+        ref, ref_dir = list(zip(*[self.data_manager.get_ref(p,c) for p,c in chain]))
+        regions = [self.data_manager.get_ref_region(p,c) for p,c in chain]
 
-            mask = np.expand_dims(mask, axis=-1) | \
-                (rfn.structured_to_unstructured(dref.mask).any(axis=-1).reshape(shape) \
-                if dref.mask.dtype.kind == 'V' else dref.mask.reshape(shape))
-            dref = ma.array(dref.data.reshape(shape), mask=mask)
-
-            if i != len(path)-1:
-                sel = dref
-
-        return dref
-
-
-
-
-
-
-
-
-
+        return dereference_chain(source_slice, ref, data=data, regions=regions, ref_directions=ref_dir, indices_only=index_only)
