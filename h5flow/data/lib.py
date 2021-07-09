@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import numpy.ma as ma
+import numpy.lib.recfunctions as rfn
 import logging
 
 ref_region_dtype = np.dtype([('start','i8'), ('stop','i8')])
