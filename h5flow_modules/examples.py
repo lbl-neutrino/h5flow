@@ -1,6 +1,26 @@
 import numpy as np
 
-from h5flow.core import H5FlowStage, H5FlowGenerator
+from h5flow.core import H5FlowStage, H5FlowGenerator, H5FlowResource
+
+class ExampleResource(H5FlowResource):
+    class_version = '0.0.0'
+
+    default_path = 'meta'
+
+    def __init__(self, **params):
+        super(ExampleResource,self).__init__(**params)
+
+        # get example parameters
+        self.path = params.get('path', self.default_path)
+        self.data = params.get('data', dict())
+
+    def init(self, source_name):
+        # can save data to output file
+        self.data_manager.set_attrs(self.path, **self.data)
+
+    def get(self, name):
+        # but allows access to in-memory objects
+        return self.data[name]
 
 class ExampleGenerator(H5FlowGenerator):
     class_version = '0.0.0'
@@ -49,6 +69,8 @@ class ExampleGenerator(H5FlowGenerator):
         # return slice into newly added data
         return next_slice
 
+from h5flow.core import resources
+
 class ExampleStage(H5FlowStage):
     class_version = '0.0.0'
 
@@ -77,8 +99,8 @@ class ExampleStage(H5FlowStage):
         # manipulate data from cache
         data = cache[source_name]
 
-        # remove things from the cache if subsequent stages need to load fresh data
-        del cache[source_name]
+        # access resource data
+        resources['ExampleResource'].get('val0')
 
         # To add data to the output file:
         #  1. reserve a new data region within the output dataset

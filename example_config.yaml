@@ -6,6 +6,15 @@ flow:
   stages: [example_stage0, example_stage1, print]
   drop: []
 
+resources:
+  - classname: ExampleResource
+    params:
+      path: 'meta'
+      data:
+        val0: 0
+        val1: 1
+        val2: 2
+
 input:
   classname: ExampleGenerator
   dset_name: 'input/index'
@@ -15,21 +24,25 @@ input:
 example_stage0:
   classname: ExampleStage
   params:
-    output_dset: 'example_stage0/example'
+    output_dset: 'stage0/example'
 
 example_stage1:
   classname: ExampleStage
   requires:
-      - 'example_stage0/example' # load simple input/index -> example_stage0/example references
+      # load simple input/index -> example_stage0/example references
+      - 'stage0/example'
 
-      - name: 'example_stage0/example_idcs' # load indices as well (@example_stage0/example_idcs)
-        path: 'example_stage0/example'
+      # load indices as well (@example_stage0/example_idcs)
+      - name: 'stage0/example_idcs'
+        path: 'stage0/example'
         index_only: True
 
-      - name: 'input/index_once_referred' # load input -> example_stage0 -> input references
-        path: ['example_stage0/example', 'input/index']
+      # load input -> example_stage0 -> input references
+      - name: 'input/index_once_referred'
+        path: ['stage0/example', 'input/index']
+
   params:
-    output_dset: 'example_stage1/example'
+    output_dset: 'stage1/example'
 
 print: # print the contents of the cache if in verbose mode
   classname: H5FlowTestStage
