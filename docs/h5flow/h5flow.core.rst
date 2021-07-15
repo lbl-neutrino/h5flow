@@ -16,3 +16,7 @@ h5flow.core
 .. automodule:: h5flow.core.h5_flow_stage
    :members:
    :undoc-members:
+
+.. automodule:: h5flow.core.h5_flow_resource
+   :members:
+   :undoc-members:

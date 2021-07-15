@@ -24,12 +24,12 @@ class H5FlowResource(object):
 
         To build a custom resource, implement the ``init()`` or ``finish()`` methods.
 
-        To access a resource, declare it in the config file::
+        To access a resource, declare it in the config file under ``resources``::
 
-            a_resource:
-                classname: ExampleResource
-                params:
-                    a_parameter: example
+            resources:
+                 - classname: ExampleResource
+                   params:
+                       a_parameter: example
 
         And then access it from a stage or generator via::
 

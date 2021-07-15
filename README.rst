@@ -448,4 +448,11 @@ the ``h5flow_modules/examples.py`` for a working example.
 writing an ``H5FlowGenerator``
 ==============================
 
-I haven't written this section yet...
+I haven't written this section yet... but in the meantime you can examine the
+docstrings of ``h5flow.core.h5_flow_generator``.
+
+writing an ``H5FlowResource``
+=============================
+
+I haven't written this section yet... but in the meantime you can examine the
+docstrings of ``h5flow.core.h5_flow_resource``.
