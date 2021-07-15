@@ -13,7 +13,7 @@ input:
     chunk_size: 1024
 
 example_stage0:
-  classname: ExampleStage
+  !include h5flow_modules/example_stage.yaml
   params:
     output_dset: 'example_stage0/example'
 
