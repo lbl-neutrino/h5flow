@@ -297,6 +297,10 @@ defines the names and sequential order of the analysis stages should be executed
 on each data chunk provided by the generator. Optionally, ``drop`` defines a list
 of datasets to delete from the output file after the run loop completes.
 
+``h5flow`` also uses `pyyaml-include <https://pypi.org/project/pyyaml-include/>`_
+allowing for some simple inheritance from other configuration files in the
+current working directory.
+
 generators
 ~~~~~~~~~~
 
