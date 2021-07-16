@@ -3,8 +3,8 @@
 flow:
   source: input # uncomment to use the example generator
   # source: 'input/index' # uncomment to loop over an existing dataset
-  stages: [example_stage0, example_stage1, print]
-  drop: []
+  stages: [example_stage0, example_stage1, example_stage2, print]
+  drop: ['example_stage2/example']
 
 input:
   classname: ExampleGenerator
@@ -30,6 +30,11 @@ example_stage1:
         path: ['example_stage0/example', 'input/index']
   params:
     output_dset: 'example_stage1/example'
+
+example_stage2:
+  classname: ExampleStage
+  params:
+    output_dset: 'example_stage2/example' # remove this dataset from output file
 
 print: # print the contents of the cache if in verbose mode
   classname: H5FlowTestStage
