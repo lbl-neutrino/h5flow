@@ -198,6 +198,9 @@ def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1)
     # first using only the unique references and then casting it back into the
     # original selection
     ref_mask = np.isin(ref[:,ref_direction[0]], sel_idcs)
+    if not np.any(ref_mask):
+        # special case if no valid references for selection
+        return ma.array(np.empty((n_elem,1), dtype=return_dtype), mask=True)
 
     # only use references that are relevant to the selection
 
