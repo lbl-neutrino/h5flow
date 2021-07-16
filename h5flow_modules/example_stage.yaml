@@ -1,4 +1,0 @@
-# An example stage configuration
-classname: ExampleStage
-  params:
-    output_dset: 'example_stage0/example'
