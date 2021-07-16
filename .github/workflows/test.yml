@@ -1,4 +1,4 @@
-name: Linting plus tests
+name: Linting and tests
 
 on:
   push:
@@ -11,16 +11,20 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        shell: bash -l {0}
+
     steps:
     - uses: actions/checkout@v2
     - uses: conda-incubator/setup-miniconda@v2
       with:
         auto-update-conda: true
         python-version: 3.8
-    - name: Install dependencies
+        activate-environment: test
+        environment-file: environment.yml
+    - name: Install other dependencies
       run: |
-        conda activate test
-        conda env update --file environment.yml
         conda install flake8
     - name: Lint with flake8
       run: |
