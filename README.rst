@@ -367,6 +367,28 @@ dataset (rather than the data) with the ``index_only`` flag::
               path: [<first dataset>, <second dataset>]
               index_only: True
 
+resources
+~~~~~~~~~
+
+Occasionally, workflow-level, read-only data is needed to be accessed across
+multiple stages. For this, an ``H5FlowResource``-inheriting class can be
+implemented. Resources can be declared under the ``resources`` field at the top-
+level of the configuration yaml::
+
+    resources:
+         - classname: DummyResource
+           params:
+                example_parameter: 'example'
+
+These objects can be accessed within a workflow source via their classname::
+
+    from h5flow.core import resources
+
+    resources['DummyResource'] # access the DummyResource
+
+It is important to note that only one instance of a given resource class is
+allowed. Each resource is provided all runtime options and thus can load or
+create data that depends on the input file, dataset selection, or output file.
 
 writing an ``H5FlowStage``
 ==========================
@@ -426,4 +448,11 @@ the ``h5flow_modules/examples.py`` for a working example.
 writing an ``H5FlowGenerator``
 ==============================
 
-I haven't written this section yet...
+I haven't written this section yet... but in the meantime you can examine the
+docstrings of ``h5flow.core.h5_flow_generator``.
+
+writing an ``H5FlowResource``
+=============================
+
+I haven't written this section yet... but in the meantime you can examine the
+docstrings of ``h5flow.core.h5_flow_resource``.
