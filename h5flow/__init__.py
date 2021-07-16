@@ -3,7 +3,8 @@ import argparse
 import yaml
 import sys
 import logging
-from yaml import Loader
+from yamlinclude import YamlIncludeConstructor
+YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir='./')
 
 try:
     from mpi4py import MPI
@@ -48,7 +49,7 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
                 logging.info(line.strip('\n'))
         logging.info('~~~~~~~~~~~~~~~~~~~')
     with open(config,'r') as f:
-        config = yaml.load(f, Loader=Loader)
+        config = yaml.load(f, Loader=yaml.FullLoader)
 
     if rank == 0:
         logging.info('~~~ INIT ~~~')
