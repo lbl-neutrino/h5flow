@@ -131,10 +131,9 @@ class H5FlowDataManager(object):
 
         '''
         if path in self.fh:
+            # if it already exists in output file, do not use temp file
             return self.fh
-        elif self._temp_fh is not None and path in self._temp_fh:
-            return self._temp_fh
-        elif any([path.startswith(d) for d in self.drop_list]):
+        elif any([d in path for d in self.drop_list]):
             return self._temp_fh
         else:
             return self.fh
@@ -167,7 +166,7 @@ class H5FlowDataManager(object):
             :returns: ``True`` if data object exists
 
         '''
-        return f'{dataset_name}/data' in self._route_fh(dataset_name)
+        return f'{dataset_name}/data' in self._route_fh(f'{dataset_name}/data')
 
     def ref_exists(self, parent_dataset_name, child_dataset_name):
         '''
@@ -180,10 +179,10 @@ class H5FlowDataManager(object):
             :returns: ``True`` if references exists
 
         '''
-        return (f'{parent_dataset_name}/ref/{child_dataset_name}/ref' in self._route_fh(dataset_name) \
-                or f'{child_dataset_name}/ref/{parent_dataset_name}/ref' in self._route_fh(dataset_name)) \
-            and f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region' in self._route_fh(dataset_name) \
-            and f'{child_dataset_name}/ref/{parent_dataset_name}/ref_region' in self._route_fh(dataset_name) \
+        return (f'{parent_dataset_name}/ref/{child_dataset_name}/ref' in self._route_fh(f'{parent_dataset_name}/ref/{child_dataset_name}/ref') \
+                or f'{child_dataset_name}/ref/{parent_dataset_name}/ref' in self._route_fh(f'{child_dataset_name}/ref/{parent_dataset_name}/ref')) \
+            and f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region' in self._route_fh(f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region') \
+            and f'{child_dataset_name}/ref/{parent_dataset_name}/ref_region' in self._route_fh(f'{child_dataset_name}/ref/{parent_dataset_name}/ref_region') \
 
     def attr_exists(self, name, key):
         '''
@@ -196,8 +195,8 @@ class H5FlowDataManager(object):
             :returns: ``True`` if attribute exists
 
         '''
-        if f'{name}' in self._route_fh(dataset_name):
-            return key in self._route_fh(dataset_name)[f'{name}'].attrs
+        if f'{name}' in self._route_fh(name):
+            return key in self._route_fh(name)[f'{name}'].attrs
         return False
 
     def get_dset(self, dataset_name):
@@ -209,7 +208,7 @@ class H5FlowDataManager(object):
             :returns: ``h5py.Dataset``, e.g. ``stage0/obj0/data``
 
         '''
-        dset = self._route_fh(dataset_name)[f'{dataset_name}/data']
+        dset = self._route_fh(f'{dataset_name}/data')[f'{dataset_name}/data']
         return dset
 
     def get_attrs(self, name):
@@ -234,10 +233,13 @@ class H5FlowDataManager(object):
             :returns: ``tuple`` of ``h5py.Dataset``, reference direction; e.g. ``(stage0/obj0/ref/stage0/obj1/ref, (0,1))``
 
         '''
-        if f'{parent_dataset_name}/ref/{child_dataset_name}/ref' in self._route_fh(parent_dataset_name):
-            dset = self._route_fh(parent_dataset_name)[f'{parent_dataset_name}/ref/{child_dataset_name}/ref']
+        path = f'{parent_dataset_name}/ref/{child_dataset_name}/ref'
+        fh = self._route_fh(path)
+        if path in fh:
+            dset = fh[path]
             return dset, (0,1)
-        dset = self._route_fh(child_dataset_name)[f'{child_dataset_name}/ref/{parent_dataset_name}/ref']
+        path = f'{child_dataset_name}/ref/{parent_dataset_name}/ref'
+        dset = self._route_fh(path)[path]
         return dset, (1,0)
 
     def get_refs(self, dataset_name):
@@ -268,7 +270,8 @@ class H5FlowDataManager(object):
             :returns: ``h5py.Dataset``, ``stage0/obj0/ref/stage0/obj1/ref_region``, (0,1)
 
         '''
-        return self._route_fh(parent_dataset_name)[f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region']
+        path = f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region'
+        return self._route_fh(path)[path]
 
 
     def set_attrs(self, name, **attrs):
@@ -297,7 +300,7 @@ class H5FlowDataManager(object):
         '''
         path = f'{dataset_name}/data'
 
-        fh = self._route_fh(dataset_name)
+        fh = self._route_fh(path)
         if path not in fh:
             fh.require_dataset(path, (0,), maxshape=(None,),
                 dtype=dtype)
@@ -314,11 +317,11 @@ class H5FlowDataManager(object):
 
         '''
         child_path = f'{child_dataset_name}/ref/{parent_dataset_name}'
-        if child_path + '/ref' in self._route_fh(child_dataset_name):
+        if child_path + '/ref' in self._route_fh(child_path):
             raise RuntimeError(f'References for {parent_dataset_name}->{child_dataset_name} already exist under {child_path}')
         path = f'{parent_dataset_name}/ref/{child_dataset_name}'
 
-        fh = self._route_fh(parent_dataset_name)
+        fh = self._route_fh(path)
         if path not in fh:
             # create reference group, if not present
             if f'{parent_dataset_name}/ref' not in fh:
@@ -334,7 +337,7 @@ class H5FlowDataManager(object):
             # create lookup table dataset
             parent_dset = self.get_dset(parent_dataset_name)
             child_dset = self.get_dset(child_dataset_name)
-            child_fh = self._route_fh(child_dataset_name)
+            child_fh = self._route_fh(child_path)
             fh.require_dataset(path+'/ref_region', shape=(len(parent_dset),), maxshape=(None,),
                 dtype=ref_region_dtype, fillvalue=np.zeros((1,), dtype=ref_region_dtype))
             child_fh.require_dataset(child_path+'/ref_region', shape=(len(child_dset),), maxshape=(None,),
@@ -354,10 +357,14 @@ class H5FlowDataManager(object):
             for ref in self.get_refs(dset.name[:-5]):
                 dset0 = ref.attrs['dset0']
                 dset1 = ref.attrs['dset1']
-                fh0 = self._route_fh(dset0)
-                fh1 = self._route_fh(dset1)
-                self._resize_dset(fh0[ref.attrs['ref_region0']], (len(fh0[dset0]),))
-                self._resize_dset(fh1[ref.attrs['ref_region1']], (len(fh1[dset1]),))
+                self._resize_dset(
+                    self._route_fh(ref.attrs['ref_region0'])[ref.attrs['ref_region0']],
+                    (len(self._route_fh(dset0)[dset0]),)
+                    )
+                self._resize_dset(
+                    self._route_fh(ref.attrs['ref_region1'])[ref.attrs['ref_region1']],
+                    (len(self._route_fh(dset1)[dset1]),)
+                    )
 
     def reserve_data(self, dataset_name, spec):
         '''
@@ -374,8 +381,6 @@ class H5FlowDataManager(object):
             :returns: ``slice`` into ``dataset_name`` where access is given
 
         '''
-        fh = self._route_fh(dataset_name)
-        grp = fh[dataset_name]
         dset = self.get_dset(dataset_name)
         curr_len = len(dset)
         specs = self.comm.allgather(spec) if H5FLOW_MPI else [spec]
