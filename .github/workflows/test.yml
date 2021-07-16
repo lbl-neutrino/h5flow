@@ -38,4 +38,4 @@ jobs:
         mpiexec pytest --with-mpi
     - name: Test example
       run: |
-        mpiexec h5flow -c example_config -o test.h5
+        mpiexec h5flow -c example_config.yaml -o test.h5
