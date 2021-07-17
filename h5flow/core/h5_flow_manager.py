@@ -36,7 +36,7 @@ class H5FlowManager(object):
         self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
         self.size = self.comm.Get_size() if H5FLOW_MPI else 1
 
-        self.drop_list = config.get('flow').get('drop',list())
+        self.drop_list = config['flow'].get('drop',list())
 
         # set up the data manager
         self.configure_data_manager(output_filename, config)
@@ -70,17 +70,19 @@ class H5FlowManager(object):
         global resources
 
         for obj_config in config.get('resources',list()):
-            obj_classname = obj_config.get('classname')
+            obj_classname = obj_config['classname']
             obj_class = get_class(obj_classname)
             if issubclass(obj_class, H5FlowResource):
                 resources[obj_classname] = obj_class(
-                    classname=obj_config.get('classname'),
+                    classname=obj_classname,
                     data_manager=self.data_manager,
                     input_filename=input_filename,
                     start_position=start_position,
                     end_position=end_position,
                     **obj_config.get('params',dict())
                 )
+            else:
+                raise RuntimeError(f'failed to load resource {obj_classname} - does not inherit from H5FlowResource')
 
     def configure_data_manager(self, output_filename, config):
         '''
@@ -117,12 +119,12 @@ class H5FlowManager(object):
             :param end_position: ``int``, dataset end index passed to generator
 
         '''
-        source_name = config['flow'].get('source')
+        source_name = config['flow']['source']
         source_config = config[source_name] if source_name in config else self._default_generator_config(source_name)
 
-        self.generator = get_class(source_config.get('classname'))(
-            classname=source_config.get('classname'),
-            dset_name=source_config.get('dset_name'),
+        self.generator = get_class(source_config['classname'])(
+            classname=source_config['classname'],
+            dset_name=source_config['dset_name'],
             data_manager=self.data_manager,
             input_filename=input_filename,
             start_position=start_position,
@@ -141,11 +143,11 @@ class H5FlowManager(object):
             :param config: ``dict``, parsed yaml config for workflow
 
         '''
-        stage_names = config['flow'].get('stages')
-        stage_args = [config.get(stage_name) for stage_name in stage_names]
+        stage_names = config['flow'].get('stages',list())
+        stage_args = [config[stage_name] for stage_name in stage_names]
         self.stages = [
-            get_class(args.get('classname'))(
-                classname=args.get('classname'),
+            get_class(args['classname'])(
+                classname=args['classname'],
                 name=name,
                 data_manager=self.data_manager,
                 requires=self.format_requirements(args.get('requires',list())),
