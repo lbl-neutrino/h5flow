@@ -1,13 +1,5 @@
-import h5py
-import numpy as np
-import numpy.ma as ma
-import numpy.lib.recfunctions as rfn
-import shutil
-import os
 from tqdm import tqdm
 import logging
-import subprocess
-import time
 
 from .. import H5FLOW_MPI
 if H5FLOW_MPI:
@@ -17,6 +9,8 @@ from ..data.lib import dereference_chain
 
 from ..data import H5FlowDataManager
 from ..modules import get_class
+
+from .h5_flow_resource import resources, H5FlowResource
 
 class H5FlowManager(object):
     '''
@@ -47,6 +41,9 @@ class H5FlowManager(object):
         # set up the data manager
         self.configure_data_manager(output_filename, config)
 
+        # set up resources
+        self.configure_resources(config, input_filename, start_position, end_position)
+
         # set up the file chunk generator
         self.configure_generator(input_filename, config, start_position, end_position)
 
@@ -55,6 +52,35 @@ class H5FlowManager(object):
 
         if H5FLOW_MPI:
             self.comm.barrier()
+
+    def configure_resources(self, config, input_filename, start_position, end_position):
+        '''
+            Create ``H5FlowResource`` instance for each object in config that
+            inherits from ``H5FlowResource``
+
+            :param input_filename: ``str``, input file path passed to the generator
+
+            :param config: ``dict``, parsed yaml config for workflow
+
+            :param start_position: ``int``, dataset start index passed to generator
+
+            :param end_position: ``int``, dataset end index passed to generator
+
+        '''
+        global resources
+
+        for obj_config in config.get('resources',list()):
+            obj_classname = obj_config.get('classname')
+            obj_class = get_class(obj_classname)
+            if issubclass(obj_class, H5FlowResource):
+                resources[obj_classname] = obj_class(
+                    classname=obj_config.get('classname'),
+                    data_manager=self.data_manager,
+                    input_filename=input_filename,
+                    start_position=start_position,
+                    end_position=end_position,
+                    **obj_config.get('params',dict())
+                )
 
     def configure_data_manager(self, output_filename, config):
         '''
@@ -173,14 +199,22 @@ class H5FlowManager(object):
 
     def init(self):
         '''
-            Execute ``init()`` method of generator and stages, in sequence.
+            Execute ``init()`` method of resources, generator, and stages, in
+            sequence and in that order.
 
         '''
+        global resources
+        for classname, resource in resources.items():
+            logging.debug(f'init resource {classname} source: {self.generator.dset_name}')
+            resource.init(self.generator.dset_name)
+
         logging.debug(f'init generator')
         self.generator.init()
+
         for stage in self.stages:
             logging.debug(f'init stage {stage.name} source: {self.generator.dset_name}')
             stage.init(self.generator.dset_name)
+
         if H5FLOW_MPI:
             self.comm.barrier()
 
@@ -193,7 +227,6 @@ class H5FlowManager(object):
             Also refreshes the cache with required datasets on each stage.
 
         '''
-
         loop_gen = tqdm(self.generator) if self.rank == 0 else self.generator
         stage_requirements = [[r for stage in self.stages[:i+1] for r in stage.requires] for i in range(len(self.stages))]
         for chunk in loop_gen:
@@ -220,8 +253,11 @@ class H5FlowManager(object):
         for stage in self.stages:
             logging.debug(f'finish stage {stage.name} source: {self.generator.dset_name}')
             stage.finish(self.generator.dset_name)
-        if H5FLOW_MPI:
-            self.comm.barrier()
+
+        global resources
+        for classname, resource in resources.items():
+            logging.debug(f'finish resource {classname}')
+            resource.finish(self.generator.dset_name)
 
         logging.debug(f'close data manager')
         self.data_manager.finish()
