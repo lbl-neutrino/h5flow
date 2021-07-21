@@ -310,7 +310,7 @@ class H5FlowManager(object):
         path = req['path']
         index_only = req['index_only']
 
-        chain = zip([source_name]+path[:-1], path)
+        chain = list(zip([source_name]+path[:-1], path))
 
         data = self.data_manager.get_dset(path[-1])
         ref, ref_dir = list(zip(*[self.data_manager.get_ref(p,c) for p,c in chain]))
