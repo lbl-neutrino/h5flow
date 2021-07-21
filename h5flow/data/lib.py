@@ -197,12 +197,15 @@ def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1)
     # the rest of this is index manipulation to convert from sel -> ref -> data
     # first using only the unique references and then casting it back into the
     # original selection
-    ref_mask = np.isin(ref[:,ref_direction[0]], sel_idcs)
+
+    # first get mapping from unique selection back into the selection
+    uniq_sel, uniq_inv = np.unique(sel_idcs, return_inverse=True)
+
+    # only use references that are relevant to the selection
+    ref_mask = np.isin(ref[:,ref_direction[0]], uniq_sel)
     if not np.any(ref_mask):
         # special case if no valid references for selection
         return ma.array(np.empty((n_elem,1), dtype=return_dtype), mask=True)
-
-    # only use references that are relevant to the selection
 
     # get the number of references per parent and rearrange so that references are in ordered by parent
     uniq, counts = np.unique(ref[ref_mask,ref_direction[0]], return_counts=True)
@@ -211,10 +214,7 @@ def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1)
     max_counts = np.max(counts)
 
     # now, we'll fill a subarray consisting of unique elements that were requested (shape: (len(uniq_sel), max_counts) )
-
-    # get mapping from unique selection back into the selection
-    uniq_sel, uniq_inv = np.unique(sel_idcs, return_inverse=True)
-    # then get a mapping from the unique selection into the unique reference parents
+    # get a mapping from the unique selection into the unique reference parents
     _,uniq_sel_idcs,uniq2uniq_sel_idcs = np.intersect1d(uniq_sel, uniq, assume_unique=False, return_indices=True)
 
     # set up subarrays for unique selection
