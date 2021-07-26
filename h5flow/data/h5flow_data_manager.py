@@ -183,6 +183,19 @@ class H5FlowDataManager(object):
                 or f'{child_dataset_name}/ref/{parent_dataset_name}/ref' in self._route_fh(f'{child_dataset_name}/ref/{parent_dataset_name}/ref')) \
             and f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region' in self._route_fh(f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region') \
             and f'{child_dataset_name}/ref/{parent_dataset_name}/ref_region' in self._route_fh(f'{child_dataset_name}/ref/{parent_dataset_name}/ref_region') \
+    def ref_region_exists(self, parent_dataset_name, child_dataset_name):
+        '''
+            Check if reference table for ``parent_dataset_name -> child_dataset_name`` exists
+
+            :param parent_dataset_name: ``str`` path to parent dataset, e.g. ``stage0/obj0``
+
+            :param child_dataset_name: ``str`` path to child dataset, e.g. ``stage0/obj1``
+
+            :returns: ``True`` if reference table exists
+
+        '''
+        path = f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region'
+        return path in self._route_fh(path)
 
     def attr_exists(self, name, key):
         '''
