@@ -312,6 +312,9 @@ class H5FlowManager(object):
         path = req['path']
         index_only = req['index_only']
 
+        logging.debug(('loading requirement: '+' -> '.join([source_name] + path))+\
+            ('' if not index_only else '(index)'))
+
         chain = list(zip([source_name]+path[:-1], path))
 
         data = self.data_manager.get_dset(path[-1])
