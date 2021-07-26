@@ -13,7 +13,7 @@ except Exception as e:
     logging.warning(f'Running without mpi4py because {e}')
     H5FLOW_MPI = False
 
-from .core import H5FlowManager
+from .core import H5FlowManager, resources
 
 def run(config, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0):
     '''
@@ -36,6 +36,11 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
 
     log_level = { 0:'WARNING', 1:'INFO', 2:'DEBUG' }[verbose]
     logging.basicConfig(format=f'%(asctime)s (r{rank}) %(module)s.%(funcName)s[l%(lineno)d] %(levelname)s : %(message)s', level=log_level)
+
+    global resources
+    # refresh resource list
+    for key in list(resources.keys()):
+        del resources[key]
 
     if rank == 0:
         logging.info(f'output file: {output_filename}')
