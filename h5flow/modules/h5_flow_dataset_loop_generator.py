@@ -47,8 +47,9 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
 
         self.iteration = 0
 
-    def init(self):
         self.copy(self.input_filename, self.data_manager.filepath)
+
+    def init(self):
         self.setup_slices()
 
     def next(self):
