@@ -1,6 +1,14 @@
 h5flow
 ======
 
+.. image:: https://readthedocs.org/projects/h5flow/badge/?version=latest
+    :target: https://h5flow.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
+.. image:: https://github.com/peter-madigan/h5flow/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/peter-madigan/h5flow/actions/
+    :alt: Test Status
+
 A basic MPI framework to create simple sequential workflows, looping over
 a dataset within a structured HDF5 file. All MPI calls are hidden behind an API
 to allow for straight-forward implementation of parallelized algorithms without
