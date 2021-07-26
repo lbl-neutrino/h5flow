@@ -15,6 +15,8 @@ def print_ref(grp):
         if n.endswith('/ref') and isinstance(d,h5py.Dataset)
         else None
         )
+    if not len(l):
+        return
     max_length = max([len(n) for n,d in l])
     for n,d in l:
         print(n+' '*(max_length-len(n))+' '+str(d))
@@ -29,9 +31,29 @@ def print_data(grp):
         if n.endswith('/data') and isinstance(d,h5py.Dataset)
         else None
         )
+    if not len(l):
+        return
     max_length = max([len(n) for n,d in l])
     for n,d in l:
         print(n+' '*(max_length-len(n))+' '+str(d))
+
+def print_attr(grp):
+    '''
+        Print out all attributes in file (or group)
+
+    '''
+    l = list()
+    grp.visititems(lambda n,d: l.append((n,d.attrs))\
+        if len(d.attrs) and not (n.endswith('/ref') or n.endswith('/ref_region'))\
+        else None
+        )
+    if not len(l):
+        return
+    max_length = max([len(k) for n,d in l for k in d])
+    for n,d in l:
+        print(n)
+        for k,v in d.items():
+            print('\t'+k+':'+' '*(max_length-len(k))+' '+str(v))
 
 def dereference_chain(sel, refs, data=None, regions=None, mask=None, ref_directions=None, indices_only=False):
     '''
@@ -117,6 +139,7 @@ def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1)
 
         :returns: ``numpy`` masked array (or if ``as_masked=False`` a ``list``) of length equivalent to ``sel``
     '''
+
     # set up selection
     sel_mask = mask
     sel_idcs = np.r_[sel][~sel_mask] if sel_mask is not None else np.r_[sel]
