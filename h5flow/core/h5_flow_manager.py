@@ -97,7 +97,7 @@ class H5FlowManager(object):
             :param config: ``dict``, parsed yaml config for workflow
 
         '''
-        self.data_manager = H5FlowDataManager(output_filename)
+        self.data_manager = H5FlowDataManager(output_filename, drop_list=self.drop_list)
 
     def configure_generator(self, input_filename, config, start_position, end_position):
         '''
@@ -262,9 +262,7 @@ class H5FlowManager(object):
             resource.finish(self.generator.dset_name)
 
         logging.debug(f'close data manager')
-        for drop in self.drop_list:
-            self.data_manager.delete(drop)
-        self.data_manager.close_file()
+        self.data_manager.finish()
 
     def update_cache(self, cache, source_name, source_slice, requirements):
         '''

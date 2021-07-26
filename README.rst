@@ -295,7 +295,8 @@ The ``source`` defines the loop source dataset. By default, you may specify an
 existing dataset and an ``H5FlowDatasetLoopGenerator`` will be used. ``stages``
 defines the names and sequential order of the analysis stages should be executed
 on each data chunk provided by the generator. Optionally, ``drop`` defines a list
-of datasets to delete from the output file after the run loop completes.
+of dataset paths to save in a temporary file to be deleted at the end of the
+workflow.
 
 ``h5flow`` also uses `pyyaml-include <https://pypi.org/project/pyyaml-include/>`_
 allowing for some simple inheritance from other configuration files in the

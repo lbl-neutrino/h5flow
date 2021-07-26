@@ -2,6 +2,7 @@ from inspect import isclass
 import os
 import importlib.util
 import sys
+import logging
 from pkgutil import iter_modules
 
 def find_class(classname, directory):
@@ -19,15 +20,18 @@ def find_class(classname, directory):
     for (finder, name, _) in iter_modules([path]):
         if name == 'setup' or name == 'h5flow':
             continue
-        spec = finder.find_spec(name)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module)
-        for attribute_name in dir(module):
-            attribute = getattr(module, attribute_name)
-            if isclass(attribute):
-                if attribute_name == classname:
-                    return attribute
+        try:
+            spec = finder.find_spec(name)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[name] = module
+            spec.loader.exec_module(module)
+            for attribute_name in dir(module):
+                attribute = getattr(module, attribute_name)
+                if isclass(attribute):
+                    if attribute_name == classname:
+                        return attribute
+        except Exception as e:
+            logging.warning(f'Encountered import error: {e}')
     return None
 
 def get_class(classname):
