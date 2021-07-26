@@ -179,10 +179,10 @@ class H5FlowDataManager(object):
             :returns: ``True`` if references exists
 
         '''
-        return (f'{parent_dataset_name}/ref/{child_dataset_name}/ref' in self._route_fh(f'{parent_dataset_name}/ref/{child_dataset_name}/ref') \
-                or f'{child_dataset_name}/ref/{parent_dataset_name}/ref' in self._route_fh(f'{child_dataset_name}/ref/{parent_dataset_name}/ref')) \
-            and f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region' in self._route_fh(f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region') \
-            and f'{child_dataset_name}/ref/{parent_dataset_name}/ref_region' in self._route_fh(f'{child_dataset_name}/ref/{parent_dataset_name}/ref_region') \
+        path0 = f'{parent_dataset_name}/ref/{child_dataset_name}/ref'
+        path1 = f'{child_dataset_name}/ref/{parent_dataset_name}/ref'
+        return (path0 in self._route_fh(path0) \
+                or path1 in self._route_fh(path1))
     def ref_region_exists(self, parent_dataset_name, child_dataset_name):
         '''
             Check if reference table for ``parent_dataset_name -> child_dataset_name`` exists
