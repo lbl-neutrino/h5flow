@@ -36,6 +36,10 @@ This will attempt to install a parallel-compatible version of HDF5 and h5py. If
 you would prefer to install h5flow without parallel capabilities, use the
 provided ``environment-nompi.yml`` instead.
 
+To install::
+
+    pip install .
+
 To run tests::
 
     pytest
