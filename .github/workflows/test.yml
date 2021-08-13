@@ -16,6 +16,7 @@ jobs:
     strategy:
       matrix:
         mpi_enabled: [0, 1]
+      fail-fast: false
     steps:
     - uses: actions/checkout@v2
     - uses: conda-incubator/setup-miniconda@v2
