@@ -1,15 +1,21 @@
 import pytest
 import h5py
 import os
-from mpi4py import MPI
 import numpy as np
 
 from h5flow.data import H5FlowDataManager
 from h5flow.data import ref_region_dtype, dereference
+from h5flow import H5FLOW_MPI
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
+if H5FLOW_MPI:
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+else:
+    comm = None
+    rank = 0
+    size = 1
 
 
 @pytest.fixture
@@ -131,6 +137,7 @@ def test_write_ref(datamanager, full_testdset, full_testref):
     assert all([np.all(dm.get_dset(full_testdset[0])[sel] == d) for d in data])
 
 
+@pytest.mark.skipif(size != 1, reason='test designed for single process only')
 def test_write_ref(datamanager):
     dm = datamanager
     dm.create_dset('A', int)
