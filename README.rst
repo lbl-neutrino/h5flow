@@ -22,23 +22,25 @@ First, download this code::
     git clone https://github.com/peter-madigan/h5flow
     cd h5flow
 
-To setup a fresh conda environment::
+To install dependencies in a fresh conda environment::
 
     conda env create --name <env> --file environment.yml
     conda activate <env>
-    pip install .
 
-To update an existing environment::
+To update an existing environment with necessary dependencies::
 
     conda env update --name <env> --file environment.yml
     conda activate <env>
-    pip install .
+
+This will attempt to install a parallel-compatible version of HDF5 and h5py. If
+you would prefer to install h5flow without parallel capabilities, use the
+provided ``environment-nompi.yml`` instead.
 
 To run tests::
 
     pytest
 
-To run mpi tests::
+To run MPI-enabled tests::
 
     mpiexec pytest --with-mpi
 
