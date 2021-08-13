@@ -35,6 +35,7 @@ jobs:
         pip install .
 
   lint:
+    needs: build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -49,6 +50,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
   test:
+    needs: build
     runs-on: ubuntu-latest
     defaults:
       run:
