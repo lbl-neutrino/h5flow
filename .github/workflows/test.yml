@@ -39,6 +39,7 @@ jobs:
     defaults:
       run:
         shell: bash -l {0}
+    steps:
     - name: Lint
       run: |
         conda install flake8
@@ -55,6 +56,7 @@ jobs:
     strategy:
       matrix:
         mpi_enabled: [0, 1]
+    steps:
     - name: Run tests (mpi)
       if: matrix.mpi_enabled == 1
       run: |
