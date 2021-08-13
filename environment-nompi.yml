@@ -1,0 +1,12 @@
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7
+  - h5py[version='~=2.10']
+  - pyyaml
+  - pip
+  - tqdm
+  - pytest
+  - pip:
+    - pyyaml-include

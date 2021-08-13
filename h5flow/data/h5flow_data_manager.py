@@ -82,7 +82,7 @@ class H5FlowDataManager(object):
 
         if H5FLOW_MPI:
             self.comm.barrier()
-        if self._temp_filepath and self.rank == 0:
+        if self._temp_filepath is not None and self.rank == 0:
             os.remove(self._temp_filepath)
 
     def _open_file(self, mpi=True):
@@ -93,18 +93,18 @@ class H5FlowDataManager(object):
         if mpi:
             # open file with mpi enabled
             self._fh = h5py.File(self.filepath, 'a', libver='latest', driver='mpio', comm=self.comm)
-            if self._temp_filepath:
+            if self._temp_filepath is not None:
                 self._temp_fh = h5py.File(self._temp_filepath, 'a', libver='latest', driver='mpio', comm=self.comm)
         else:
             # open file without mpi enabled
             if self.rank == 0:
                 self._fh = h5py.File(self.filepath, 'a', libver='latest')
-                if self._temp_filepath:
-                    self._temp_fh = h5py.File(self.filepath, 'a', libver='latest')
+                if self._temp_filepath is not None:
+                    self._temp_fh = h5py.File(self._temp_filepath, 'a', libver='latest')
             else:
                 self._fh = h5py.File(self.filepath, 'r', libver='latest', swmr=True)
-                if self._temp_filepath:
-                    self._temp_fh = h5py.File(self.filepath, 'r', libver='latest', swmr=True)
+                if self._temp_filepath is not None:
+                    self._temp_fh = h5py.File(self._temp_filepath, 'r', libver='latest', swmr=True)
 
         # update mpi flag
         self.mpi_flag = mpi
