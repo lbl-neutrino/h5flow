@@ -19,6 +19,11 @@ jobs:
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
+    - name: conda cache
+      uses: actions/cache@v2
+      with:
+        path: ~/conda_pkgs_dir
+        key: ${{ runner.OS }}-conda-${{ hashFiles('**/env*.y*l') }}
     - uses: conda-incubator/setup-miniconda@v2
       if: matrix.mpi_enabled == 1
       with:
