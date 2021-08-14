@@ -17,21 +17,6 @@ else:
     rank = 0
     size = 1
 
-if H5FLOW_MPI:
-    @pytest.fixture
-    def testfile(mpi_tmp_path):
-        return os.path.join(mpi_tmp_path, 'test.h5')
-else:
-    @pytest.fixture
-    def testfile(tmp_path):
-        return os.path.join(tmp_path, 'test.h5')
-
-
-@pytest.fixture
-def datamanager(testfile):
-    dm = H5FlowDataManager(testfile)
-    return dm
-
 
 def test_init(testfile, datamanager):
     # check that filepath was intialized correctly

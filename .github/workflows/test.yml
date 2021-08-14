@@ -49,6 +49,7 @@ jobs:
     - name: Run tests (mpi)
       if: matrix.mpi_enabled == 1
       run: |
+        pytest
         mpiexec pytest --with-mpi
     - name: Test example (mpi)
       if: matrix.mpi_enabled == 1

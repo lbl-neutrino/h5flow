@@ -2,8 +2,6 @@ import pytest
 import os
 import numpy as np
 import numpy.ma as ma
-
-from h5flow.data import H5FlowDataManager
 from h5flow.data import *
 from h5flow import H5FLOW_MPI
 
@@ -18,19 +16,9 @@ else:
     size = 1
 
 
-if H5FLOW_MPI:
-    @pytest.fixture
-    def testfile(mpi_tmp_path):
-        return os.path.join(mpi_tmp_path, 'test.h5')
-else:
-    @pytest.fixture
-    def testfile(tmp_path):
-        return os.path.join(tmp_path, 'test.h5')
-
-
 @pytest.fixture
-def full_testfile(testfile):
-    dm = H5FlowDataManager(testfile)
+def full_testfile(datamanager):
+    dm = datamanager
     dm.create_dset('A', int)
     dm.create_dset('B', int)
     dm.create_dset('C', int)
