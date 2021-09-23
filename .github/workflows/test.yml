@@ -41,7 +41,7 @@ jobs:
         environment-file: environment-nompi.yml
     - name: Install
       run: |
-        pip install .
+        pip install . --no-deps
     - name: Lint
       run: |
         conda install flake8
