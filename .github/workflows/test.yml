@@ -19,11 +19,6 @@ jobs:
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
-    - name: set env (mpi)
-      if: matrix.mpi_enabled == 1
-      run: |
-        export CC=mpicc
-        export HDF5_MPI="On"
     - name: conda cache
       uses: actions/cache@v2
       with:
@@ -31,6 +26,9 @@ jobs:
         key: ${{ runner.OS }}-conda-${{ hashFiles('**/env*.y*l') }}
     - uses: conda-incubator/setup-miniconda@v2
       if: matrix.mpi_enabled == 1
+      env:
+        CC: mpicc
+        HDF5_MPI: On
       with:
         auto-update-conda: true
         activate-environment: test
