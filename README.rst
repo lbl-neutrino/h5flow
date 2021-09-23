@@ -24,11 +24,15 @@ First, download this code::
 
 To install dependencies in a fresh conda environment::
 
+    export CC=mpicc
+    export HDF5_MPI="ON"
     conda env create --name <env> --file environment.yml
     conda activate <env>
 
 To update an existing environment with necessary dependencies::
 
+    export CC=mpicc
+    export HDF5_MPI="ON"
     conda env update --name <env> --file environment.yml
     conda activate <env>
 
