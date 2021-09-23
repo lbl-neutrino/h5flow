@@ -44,16 +44,14 @@ jobs:
       run: |
         conda env update -n test -f environment.yml
         python -c "import h5py; print(h5py.__file__)"
+        pip install .
         pytest
 
     - name: Install dependencies (no mpi)
       if: matrix.mpi_enabled == 0
       run: |
         conda env update -n test -f environment-nompi.yml
-
-    - name: Install
-      run: |
-        pip install . --no-deps
+        pip install .
 
     - name: Lint
       run: |
