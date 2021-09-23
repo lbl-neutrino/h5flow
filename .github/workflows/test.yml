@@ -33,6 +33,7 @@ jobs:
       with:
         auto-update-conda: true
         activate-environment: test
+        python-version: "3.7"
         use-only-tar-bz2: true
 
     - name: Install dependencies (mpi)
@@ -41,13 +42,10 @@ jobs:
         CC: mpicc
         HDF5_MPI: "On"
       run: |
-        echo "from env: $CC $HDF5_MPI"
-        export CC=mpicc
-        export HDF5_MPI="On"
-        echo "set env: $CC $HDF5_MPI"
         conda env update -n test -f environment.yml
+        conda list | grep hdf5
 
-    - name: install dependencies (no mpi)
+    - name: Install dependencies (no mpi)
       if: matrix.mpi_enabled == 0
       run: |
         conda env update -n test -f environment-nompi.yml
