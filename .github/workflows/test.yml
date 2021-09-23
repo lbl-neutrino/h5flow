@@ -28,7 +28,7 @@ jobs:
       if: matrix.mpi_enabled == 1
       env:
         CC: mpicc
-        HDF5_MPI: On
+        HDF5_MPI: "On"
       with:
         auto-update-conda: true
         activate-environment: test
