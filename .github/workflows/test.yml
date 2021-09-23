@@ -19,29 +19,35 @@ jobs:
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
+
     - name: conda cache
       uses: actions/cache@v2
       with:
         path: ~/conda_pkgs_dir
         key: ${{ runner.OS }}-conda-${{ hashFiles('**/env*.y*l') }}
-    - uses: conda-incubator/setup-miniconda@v2
+
+    - name: setup python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7
+
+    - name: install dependencies (mpi)
       if: matrix.mpi_enabled == 1
       env:
         CC: mpicc
         HDF5_MPI: "On"
-      with:
-        auto-update-conda: true
-        activate-environment: test
-        environment-file: environment.yml
-    - uses: conda-incubator/setup-miniconda@v2
+      run: |
+        $CONDA/bin/conda env update --file environment.yml --name base
+
+    - name: install dependencies (no mpi)
       if: matrix.mpi_enabled == 0
-      with:
-        auto-update-conda: true
-        activate-environment: test
-        environment-file: environment-nompi.yml
+      run: |
+        $CONDA/bin/conda env update --file environment-nompi.yml --name base
+
     - name: Install
       run: |
         pip install .
+
     - name: Lint
       run: |
         conda install flake8
@@ -49,19 +55,23 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
     - name: Run tests (mpi)
       if: matrix.mpi_enabled == 1
       run: |
         pytest
         mpiexec pytest --with-mpi
+
     - name: Test example (mpi)
       if: matrix.mpi_enabled == 1
       run: |
         mpiexec h5flow -vv -c example_config.yaml -o test.h5
+
     - name: Run tests (no mpi)
       if: matrix.mpi_enabled == 0
       run: |
         pytest
+
     - name: Test example (no mpi)
       if: matrix.mpi_enabled == 0
       run: |
