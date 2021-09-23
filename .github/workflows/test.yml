@@ -33,12 +33,14 @@ jobs:
         auto-update-conda: true
         activate-environment: test
         environment-file: environment.yml
+        use-only-tar-bz2: true
     - uses: conda-incubator/setup-miniconda@v2
       if: matrix.mpi_enabled == 0
       with:
         auto-update-conda: true
         activate-environment: test
         environment-file: environment-nompi.yml
+        use-only-tar-bz2: true
     - name: Install
       run: |
         pip install . --no-deps
