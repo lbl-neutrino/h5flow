@@ -14,4 +14,4 @@ dependencies:
   - pytest-mpi
   - pip:
     - pyyaml-include
-    # - h5py --no-binary=h5py
+    - h5py --no-binary=h5py

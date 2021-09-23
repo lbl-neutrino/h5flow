@@ -40,14 +40,10 @@ jobs:
       if: matrix.mpi_enabled == 1
       env:
         CC: mpicc
-        HDF5_MPI: "On"
+        HDF5_MPI: "ON"
       run: |
         conda env update -n test -f environment.yml
-        echo $CC $HDF5_MPI
-        pip install --no-binary=h5py h5py --verbose
-        python -c "import h5py; print(h5py.__file__)"
-        pip install . --verbose
-        pytest
+        pip install .
 
     - name: Install dependencies (no mpi)
       if: matrix.mpi_enabled == 0
@@ -66,7 +62,6 @@ jobs:
     - name: Run tests (mpi)
       if: matrix.mpi_enabled == 1
       run: |
-        python -c "import h5py; print(h5py.__file__)"
         pytest
         mpiexec pytest --with-mpi
 
