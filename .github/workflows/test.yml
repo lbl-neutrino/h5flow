@@ -43,9 +43,8 @@ jobs:
         HDF5_MPI: "On"
       run: |
         conda env update -n test -f environment.yml
-        conda list | grep hdf5
-        pip list | grep h5py
-        python -c "import h5py; print('h5py.__file__')"
+        python -c "import h5py; print(h5py.__file__)"
+        pytest
 
     - name: Install dependencies (no mpi)
       if: matrix.mpi_enabled == 0
@@ -67,10 +66,7 @@ jobs:
     - name: Run tests (mpi)
       if: matrix.mpi_enabled == 1
       run: |
-        conda list | grep hdf5
-        pip list | grep h5py
-        python -c "import h5py; print('h5py.__file__')"
-
+        python -c "import h5py; print(h5py.__file__)"
         pytest
         mpiexec pytest --with-mpi
 
