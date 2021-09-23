@@ -41,6 +41,10 @@ jobs:
         CC: mpicc
         HDF5_MPI: "On"
       run: |
+        echo "from env: $CC $HDF5_MPI"
+        export CC=mpicc
+        export HDF5_MPI="On"
+        echo "set env: $CC $HDF5_MPI"
         conda env update -n test -f environment.yml
 
     - name: install dependencies (no mpi)
