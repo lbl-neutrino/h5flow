@@ -43,8 +43,10 @@ jobs:
         HDF5_MPI: "On"
       run: |
         conda env update -n test -f environment.yml
+        echo $CC $HDF5_MPI
+        pip install --no-binary=h5py h5py --verbose
         python -c "import h5py; print(h5py.__file__)"
-        pip install .
+        pip install . --verbose
         pytest
 
     - name: Install dependencies (no mpi)
