@@ -12,6 +12,7 @@ from ..modules import get_class
 
 from .h5_flow_resource import resources, H5FlowResource
 
+
 class H5FlowManager(object):
     '''
         Overarching coordination class. Creates data managers, generators, and
@@ -31,12 +32,13 @@ class H5FlowManager(object):
             manager.finish()    # clean up components
 
     '''
+
     def __init__(self, config, output_filename, input_filename=None, start_position=None, end_position=None):
         self.comm = MPI.COMM_WORLD if H5FLOW_MPI else None
         self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
         self.size = self.comm.Get_size() if H5FLOW_MPI else 1
 
-        self.drop_list = config['flow'].get('drop',list())
+        self.drop_list = config['flow'].get('drop', list())
 
         # set up the data manager
         self.configure_data_manager(output_filename, config)
@@ -69,7 +71,7 @@ class H5FlowManager(object):
         '''
         global resources
 
-        for obj_config in config.get('resources',list()):
+        for obj_config in config.get('resources', list()):
             obj_classname = obj_config['classname']
             obj_class = get_class(obj_classname)
             if issubclass(obj_class, H5FlowResource):
@@ -79,7 +81,7 @@ class H5FlowManager(object):
                     input_filename=input_filename,
                     start_position=start_position,
                     end_position=end_position,
-                    **obj_config.get('params',dict())
+                    **obj_config.get('params', dict())
                 )
             else:
                 raise RuntimeError(f'failed to load resource {obj_classname} - does not inherit from H5FlowResource')
@@ -129,8 +131,8 @@ class H5FlowManager(object):
             input_filename=input_filename,
             start_position=start_position,
             end_position=end_position,
-            **source_config.get('params',dict())
-            )
+            **source_config.get('params', dict())
+        )
 
     def configure_flow(self, config):
         '''
@@ -143,25 +145,25 @@ class H5FlowManager(object):
             :param config: ``dict``, parsed yaml config for workflow
 
         '''
-        stage_names = config['flow'].get('stages',list())
+        stage_names = config['flow'].get('stages', list())
         stage_args = [config[stage_name] for stage_name in stage_names]
         self.stages = [
             get_class(args['classname'])(
                 classname=args['classname'],
                 name=name,
                 data_manager=self.data_manager,
-                requires=self.format_requirements(args.get('requires',list())),
-                **args.get('params',dict()))
-            for name,args in zip(stage_names, stage_args)
-            ]
+                requires=self.format_requirements(args.get('requires', list())),
+                **args.get('params', dict()))
+            for name, args in zip(stage_names, stage_args)
+        ]
 
     def _default_generator_config(self, source_name):
         if self.rank == 0:
-            logging.warning(f'Could not find generator description, using default loop behavior on {source_name} dataset')
+            print(f'Could not find generator description, using default loop behavior on {source_name} dataset')
         return dict(
             classname='H5FlowDatasetLoopGenerator',
             dset_name=source_name
-            )
+        )
 
     def format_requirements(self, requirements):
         '''
@@ -177,16 +179,16 @@ class H5FlowManager(object):
         for r in requirements:
             if isinstance(r, str):
                 req.append(dict(
-                    name= r,
-                    path= [r],
-                    index_only= False
-                    ))
-            elif isinstance(r,dict):
+                    name=r,
+                    path=[r],
+                    index_only=False
+                ))
+            elif isinstance(r, dict):
                 d = dict(name=r['name'])
                 if 'path' in r:
-                    if isinstance(r['path'],str):
+                    if isinstance(r['path'], str):
                         d['path'] = [r['path']]
-                    elif isinstance(r['path'],list):
+                    elif isinstance(r['path'], list):
                         d['path'] = r['path']
                     else:
                         raise ValueError(f'Unrecognized path specification in {r}')
@@ -198,7 +200,6 @@ class H5FlowManager(object):
                 raise ValueError(f'Unrecognized requirement {r}')
         return req
 
-
     def init(self):
         '''
             Execute ``init()`` method of resources, generator, and stages, in
@@ -207,14 +208,11 @@ class H5FlowManager(object):
         '''
         global resources
         for classname, resource in resources.items():
-            logging.debug(f'init resource {classname} source: {self.generator.dset_name}')
             resource.init(self.generator.dset_name)
 
-        logging.debug(f'init generator')
         self.generator.init()
 
         for stage in self.stages:
-            logging.debug(f'init stage {stage.name} source: {self.generator.dset_name}')
             stage.init(self.generator.dset_name)
 
         if H5FLOW_MPI:
@@ -229,14 +227,17 @@ class H5FlowManager(object):
             Also refreshes the cache with required datasets on each stage.
 
         '''
+        if self.rank == 0:
+            print(f'Run loop on {self.generator.dset_name}:')
+            print('  ' + ' -> '.join([stage.name for stage in self.stages]))
+
         loop_gen = tqdm(self.generator) if self.rank == 0 else self.generator
-        stage_requirements = [[r for stage in self.stages[:i+1] for r in stage.requires] for i in range(len(self.stages))]
+        stage_requirements = [[r for stage in self.stages[:i + 1] for r in stage.requires] for i in range(len(self.stages))]
         for chunk in loop_gen:
-            logging.debug(f'run on {self.generator.dset_name} chunk: {chunk}')
             cache = dict()
             for i, (stage, requirements) in enumerate(zip(self.stages, stage_requirements)):
                 self.update_cache(cache, self.generator.dset_name, chunk, requirements)
-                logging.debug(f'run stage {stage.name} source: {self.generator.dset_name} chunk: {chunk} cache contains {len(cache)} objects')
+                cache_size = sum([val.nbytes for val in cache.values()]) / (1024 * 1024)
                 stage.run(self.generator.dset_name, chunk, cache)
         if H5FLOW_MPI:
             self.comm.barrier()
@@ -248,20 +249,16 @@ class H5FlowManager(object):
             output file.
 
         '''
-        logging.debug(f'finish generator')
         self.generator.finish()
         if H5FLOW_MPI:
             self.comm.barrier()
         for stage in self.stages:
-            logging.debug(f'finish stage {stage.name} source: {self.generator.dset_name}')
             stage.finish(self.generator.dset_name)
 
         global resources
         for classname, resource in resources.items():
-            logging.debug(f'finish resource {classname}')
             resource.finish(self.generator.dset_name)
 
-        logging.debug(f'close data manager')
         self.data_manager.finish()
 
     def update_cache(self, cache, source_name, source_slice, requirements):
@@ -291,7 +288,7 @@ class H5FlowManager(object):
         if source_name not in cache:
             cache[source_name] = self.data_manager.get_dset(source_name)[source_slice]
 
-        for i,linked_name in enumerate(required_names):
+        for i, linked_name in enumerate(required_names):
             if linked_name not in cache:
                 cache[linked_name] = self.load_requirement(requirements[i], source_name, source_slice)
 
@@ -312,13 +309,13 @@ class H5FlowManager(object):
         path = req['path']
         index_only = req['index_only']
 
-        logging.debug(('loading requirement: '+' -> '.join([source_name] + path))+\
-            ('' if not index_only else '(index)'))
+        logging.info(('loading requirement: ' + ' -> '.join([source_name] + path)) +
+                     ('' if not index_only else '(index)'))
 
-        chain = list(zip([source_name]+path[:-1], path))
+        chain = list(zip([source_name] + path[:-1], path))
 
         data = self.data_manager.get_dset(path[-1])
-        ref, ref_dir = list(zip(*[self.data_manager.get_ref(p,c) for p,c in chain]))
-        regions = [self.data_manager.get_ref_region(p,c) for p,c in chain]
+        ref, ref_dir = list(zip(*[self.data_manager.get_ref(p, c) for p, c in chain]))
+        regions = [self.data_manager.get_ref_region(p, c) for p, c in chain]
 
         return dereference_chain(source_slice, ref, data=data, regions=regions, ref_directions=ref_dir, indices_only=index_only)

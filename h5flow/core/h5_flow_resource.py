@@ -8,6 +8,7 @@ size = comm.Get_size() if H5FLOW_MPI else 1
 
 resources = dict()
 
+
 class H5FlowResource(object):
     '''
         Base class for an accessible static resource. Provides:
@@ -41,7 +42,7 @@ class H5FlowResource(object):
     class_version = '0.0.0'
 
     def __init__(self, classname, data_manager, input_filename=None,
-            start_position=None, end_position=None, **params):
+                 start_position=None, end_position=None, **params):
         self.classname = classname
         self.data_manager = data_manager
         self.input_filename = input_filename
@@ -52,6 +53,18 @@ class H5FlowResource(object):
         self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
         self.size = self.comm.Get_size() if H5FLOW_MPI else 1
 
+        if self.rank == 0:
+            print(f'create {classname}()', end='')
+            if self.input_filename is not None:
+                print(f' {input_filename}', end='')
+            if self.start_position is not None:
+                print(f' {start_position}', end='')
+            if self.start_position is not None or self.end_position is not None:
+                print(' :', end='')
+            if self.end_position is not None:
+                print(f' {end_position}', end='')
+            print()
+
     def init(self, source_name):
         '''
             Called once before starting the loop and before generator has been
@@ -59,6 +72,8 @@ class H5FlowResource(object):
 
             :returns: ``None``
         '''
+        if self.rank == 0:
+            print(f'{self.classname}.init({source_name})')
         pass
 
     def finish(self, source_name):
@@ -68,4 +83,6 @@ class H5FlowResource(object):
 
             :returns None:
         '''
+        if self.rank == 0:
+            print(f'{self.classname}.finish({source_name})')
         pass
