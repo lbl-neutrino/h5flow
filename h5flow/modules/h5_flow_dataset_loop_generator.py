@@ -7,6 +7,7 @@ from h5flow import H5FLOW_MPI
 from h5flow.core import H5FlowGenerator
 from h5flow.data import H5FlowDataManager
 
+
 class H5FlowDatasetLoopGenerator(H5FlowGenerator):
     '''
         Default dataset looping generator
@@ -40,7 +41,7 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
     def __init__(self, **params):
         super(H5FlowDatasetLoopGenerator, self).__init__(**params)
 
-        self.chunk_size = params.get('chunk_size','auto')
+        self.chunk_size = params.get('chunk_size', 'auto')
 
         if self.input_filename is None:
             raise RuntimeError('must specify an input filename!')
@@ -50,6 +51,7 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
         self.copy(self.input_filename, self.data_manager.filepath)
 
     def init(self):
+        super(H5FlowDatasetLoopGenerator, self).init()
         self.setup_slices()
 
     def next(self):
@@ -82,7 +84,7 @@ class H5FlowDatasetLoopGenerator(H5FlowGenerator):
         start = self.rank * self.chunk_size + self.start_position
         end = self.end_position
         r = range(start, end, self.size * self.chunk_size)
-        self.slices = [slice(i, min(i+self.chunk_size, end)) for i in r]
+        self.slices = [slice(i, min(i + self.chunk_size, end)) for i in r]
 
     def copy(self, f0, f1, block=True):
         # copies the whole file for the time being

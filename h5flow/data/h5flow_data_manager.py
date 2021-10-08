@@ -77,12 +77,14 @@ class H5FlowDataManager(object):
 
         '''
         for path in self.drop_list:
+            logging.info(f'deleting item at {path}')
             self.delete(path)
         self.close_file()
 
         if H5FLOW_MPI:
             self.comm.barrier()
         if self._temp_filepath is not None and self.rank == 0:
+            logging.info(f'removing temporary file {self._temp_filepath}')
             os.remove(self._temp_filepath)
 
     def _open_file(self, mpi=True):

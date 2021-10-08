@@ -1,3 +1,5 @@
+import logging
+
 from .. import H5FLOW_MPI
 if H5FLOW_MPI:
     from mpi4py import MPI
@@ -5,6 +7,7 @@ if H5FLOW_MPI:
 comm = MPI.COMM_WORLD if H5FLOW_MPI else None
 rank = comm.Get_rank() if H5FLOW_MPI else 0
 size = comm.Get_size() if H5FLOW_MPI else 1
+
 
 class H5FlowStage(object):
     '''
@@ -65,6 +68,11 @@ class H5FlowStage(object):
         self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
         self.size = self.comm.Get_size() if H5FLOW_MPI else 1
 
+        if self.rank == 0:
+            print(f'create {self.name}: {self.classname}(' +
+                  ', '.join([str(key) + '=' + str(val)
+                             for key, val in params.items()]) + ')')
+
     def init(self, source_name):
         '''
             Called once before starting the loop. Used to create datasets and
@@ -72,7 +80,8 @@ class H5FlowStage(object):
 
             :returns: ``None``
         '''
-        pass
+        if self.rank == 0:
+            print(f'{self.name}.init({source_name})')
 
     def run(self, source_name, source_slice, cache):
         '''
@@ -87,11 +96,13 @@ class H5FlowStage(object):
 
             :returns: ``None``
         '''
-        pass
+        if self.rank == 0:
+            logging.info(f'{self.name}.run({source_name}, {source_slice}, <cache : ' + '; '.join(cache.keys()) + '>)')
 
     def finish(self, source_name):
         '''
             Clean up any open files / etc, called once after run loop finishes
 
         '''
-        pass
+        if self.rank == 0:
+            print(f'{self.name}.finish({source_name})')

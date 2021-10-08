@@ -1,9 +1,11 @@
 import h5py
 import numpy as np
+import logging
 
 from .. import H5FLOW_MPI
 if H5FLOW_MPI:
     from mpi4py import MPI
+
 
 class H5FlowGenerator(object):
     '''
@@ -73,7 +75,7 @@ class H5FlowGenerator(object):
         be ``N`` times larger).
 
     '''
-    EMPTY = slice(-1,-1)
+    EMPTY = slice(-1, -1)
     class_version = '0.0.0'
 
     def __init__(self, classname, dset_name, data_manager, input_filename=None, start_position=None, end_position=None, **params):
@@ -88,12 +90,26 @@ class H5FlowGenerator(object):
         self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
         self.size = self.comm.Get_size() if H5FLOW_MPI else 1
 
+        if self.rank == 0:
+            print(f'create {classname}({dset_name})', end='')
+            if self.input_filename is not None:
+                print(f' {input_filename}', end='')
+            if self.start_position is not None:
+                print(f' {start_position}', end='')
+            if self.start_position is not None or self.end_position is not None:
+                print(' :', end='')
+            if self.end_position is not None:
+                print(f' {end_position}', end='')
+            print()
+
     def __iter__(self):
         return self
 
     def __next__(self):
         # run next function
         next_slice = self.next()
+
+        logging.info(f'{self.classname}.next() # {next_slice}')
 
         # check if all are empty slices
         slices = self.comm.allgather(next_slice) if H5FLOW_MPI else [next_slice]
@@ -108,7 +124,8 @@ class H5FlowGenerator(object):
             initializing the flow stages.
 
         '''
-        pass
+        if self.rank == 0:
+            print(f'{self.classname}.init()')
 
     def next(self):
         '''
@@ -124,4 +141,5 @@ class H5FlowGenerator(object):
             Clean up any open files / etc, called once after run loop finishes
 
         '''
-        pass
+        if self.rank == 0:
+            print(f'{self.classname}.finish()')
