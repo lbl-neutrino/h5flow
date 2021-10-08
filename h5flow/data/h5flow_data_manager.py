@@ -32,7 +32,7 @@ class H5FlowDataManager(object):
 
         To initialize::
 
-            hfdm = H5FlowDataManager(<path to file>)
+            hfdm = H5FlowDataManager(<path to file>, mode=<'r'/'a'>, mpi=<True/False>)
 
         Opening and closing the underlying resource is handled automatically when
         using the dedicated file access API, e.g.::
@@ -47,11 +47,12 @@ class H5FlowDataManager(object):
     '''
     _temp_filename_fmt = 'tmp-h5flow-%y.%m.%d-%H.%M.%S-{uid}.h5'
 
-    def __init__(self, filepath, drop_list=None):
+    def __init__(self, filepath, mode='a', mpi=H5FLOW_MPI, drop_list=None):
         self.filepath = filepath
         self._fh = None
         self._temp_fh = None
-        self.mpi_flag = H5FLOW_MPI
+        self.mpi_flag = mpi
+        self.mode = mode
 
         self.comm = MPI.COMM_WORLD if H5FLOW_MPI else None
         self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
@@ -87,26 +88,21 @@ class H5FlowDataManager(object):
             logging.info(f'removing temporary file {self._temp_filepath}')
             os.remove(self._temp_filepath)
 
-    def _open_file(self, mpi=True):
+    def _open_file(self, mpi=True, mode='a'):
         if (self._fh is not None or mpi != self.mpi_flag) and self._fh:
             # close file if mpi mode changes
             self.close_file()
 
         if mpi:
             # open file with mpi enabled
-            self._fh = h5py.File(self.filepath, 'a', libver='latest', driver='mpio', comm=self.comm)
+            self._fh = h5py.File(self.filepath, mode, driver='mpio', comm=self.comm)
             if self._temp_filepath is not None:
-                self._temp_fh = h5py.File(self._temp_filepath, 'a', libver='latest', driver='mpio', comm=self.comm)
+                self._temp_fh = h5py.File(self._temp_filepath, mode, driver='mpio', comm=self.comm)
         else:
             # open file without mpi enabled
-            if self.rank == 0:
-                self._fh = h5py.File(self.filepath, 'a', libver='latest')
-                if self._temp_filepath is not None:
-                    self._temp_fh = h5py.File(self._temp_filepath, 'a', libver='latest')
-            else:
-                self._fh = h5py.File(self.filepath, 'r', libver='latest', swmr=True)
-                if self._temp_filepath is not None:
-                    self._temp_fh = h5py.File(self._temp_filepath, 'r', libver='latest', swmr=True)
+            self._fh = h5py.File(self.filepath, mode)
+            if self._temp_filepath is not None:
+                self._temp_fh = h5py.File(self._temp_filepath, mode)
 
         # update mpi flag
         self.mpi_flag = mpi
@@ -129,7 +125,7 @@ class H5FlowDataManager(object):
 
         '''
         if self._fh is None or not self._fh:
-            self._open_file(mpi=self.mpi_flag)
+            self._open_file(mpi=self.mpi_flag, mode=self.mode)
         return self._fh
 
     @cached_function
@@ -167,6 +163,17 @@ class H5FlowDataManager(object):
         if name in fh and fh is not self._temp_fh:
             del fh[name]  # remove object group
 
+    def exists(self, path):
+        '''
+            Check if a path exists
+
+            :param path: ``str`` path to check
+
+            :returns: ``True`` if path is present
+
+        '''
+        return path in self._route_fh(path)
+
     def dset_exists(self, dataset_name):
         '''
             Check if data object of ``dataset_name`` exists
@@ -176,7 +183,7 @@ class H5FlowDataManager(object):
             :returns: ``True`` if data object exists
 
         '''
-        return f'{dataset_name}/data' in self._route_fh(f'{dataset_name}/data')
+        return self.exists(f'{dataset_name}/data')
 
     def ref_exists(self, parent_dataset_name, child_dataset_name):
         '''
@@ -189,10 +196,9 @@ class H5FlowDataManager(object):
             :returns: ``True`` if references exists
 
         '''
-        path0 = f'{parent_dataset_name}/ref/{child_dataset_name}/ref'
-        path1 = f'{child_dataset_name}/ref/{parent_dataset_name}/ref'
-        return (path0 in self._route_fh(path0)
-                or path1 in self._route_fh(path1))
+        path0 = self.exists(f'{parent_dataset_name}/ref/{child_dataset_name}/ref')
+        path1 = self.exists(f'{child_dataset_name}/ref/{parent_dataset_name}/ref')
+        return (path0 or path1)
 
     def ref_region_exists(self, parent_dataset_name, child_dataset_name):
         '''
@@ -206,7 +212,7 @@ class H5FlowDataManager(object):
 
         '''
         path = f'{parent_dataset_name}/ref/{child_dataset_name}/ref_region'
-        return path in self._route_fh(path)
+        return self.exists(path)
 
     def attr_exists(self, name, key):
         '''
@@ -219,7 +225,7 @@ class H5FlowDataManager(object):
             :returns: ``True`` if attribute exists
 
         '''
-        if f'{name}' in self._route_fh(name):
+        if self.exists(f'{name}'):
             return key in self._route_fh(name)[f'{name}'].attrs
         return False
 
