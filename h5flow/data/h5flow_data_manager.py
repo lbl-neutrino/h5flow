@@ -12,20 +12,6 @@ if H5FLOW_MPI:
 from .lib import ref_region_dtype
 
 
-def cached_function(f):
-    cache = dict()
-
-    def new_f(*args, **kwargs):
-        h = str((args, kwargs))
-        if h in cache:
-            return cache[h]
-        else:
-            rv = f(*args, **kwargs)
-            cache[h] = rv
-            return rv
-    return new_f
-
-
 class H5FlowDataManager(object):
     '''
         Coordinates access to the output data file across multiple processes.
@@ -96,6 +82,7 @@ class H5FlowDataManager(object):
         if mpi:
             # open file with mpi enabled
             self._fh = h5py.File(self.filepath, mode, driver='mpio', comm=self.comm)
+            self.comm.barrier()
             if self._temp_filepath is not None:
                 self._temp_fh = h5py.File(self._temp_filepath, mode, driver='mpio', comm=self.comm)
         else:
@@ -128,7 +115,6 @@ class H5FlowDataManager(object):
             self._open_file(mpi=self.mpi_flag, mode=self.mode)
         return self._fh
 
-    @cached_function
     def _route_fh(self, path):
         '''
             Return file handle to temp file or output file depending on if
