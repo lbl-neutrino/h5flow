@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import logging
 try:
     from mpi4py import MPI
     H5FLOW_MPI = True
@@ -9,7 +10,6 @@ from .core import H5FlowManager, resources
 import argparse
 import yaml
 import sys
-import logging
 from yamlinclude import YamlIncludeConstructor
 YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir='./')
 
