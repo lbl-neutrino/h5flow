@@ -89,7 +89,7 @@ def dereference_chain(sel, refs, data=None, regions=None, mask=None, ref_directi
 
     '''
     sel = np.r_[sel]
-    mask = np.zeros_like(sel, dtype=bool) | (mask if mask else False)
+    mask = np.zeros_like(sel, dtype=bool) | (mask if mask is not None else False)
     sel = ma.array(sel, mask=mask)
     shape = (len(sel),)
     dref = None

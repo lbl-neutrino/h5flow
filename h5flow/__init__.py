@@ -14,11 +14,11 @@ from yamlinclude import YamlIncludeConstructor
 YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir='./')
 
 
-def run(config, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0):
+def run(configs, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0):
     '''
         Execute a workflow specified by ``config`` writing to ``output_filename``.
 
-        :param config: ``str``, path to configuration yaml
+        :param configs: ``list``, paths to configuration yamls to run in sequence
 
         :param output_filename: ``str``, path to output hdf5 file
 
@@ -36,11 +36,6 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
     log_level = {0: 'WARNING', 1: 'INFO', 2: 'DEBUG'}[verbose]
     logging.basicConfig(format=f'%(asctime)s (r{rank}) %(module)s.%(funcName)s[l%(lineno)d] %(levelname)s : %(message)s', level=log_level)
 
-    global resources
-    # refresh resource list
-    for key in list(resources.keys()):
-        del resources[key]
-
     if rank == 0:
         print('~~~ H5FLOW ~~~')
         print(f'output file: {output_filename}')
@@ -49,32 +44,47 @@ def run(config, output_filename, input_filename=None, start_position=None, end_p
         print(f'end: {end_position}')
         print(f'verbose: {verbose}')
         print('~~~~~~~~~~~~~~\n')
-        print('~~~ WORKFLOW ~~~')
+
+    for iconfig, config in enumerate(configs):
+        # if running with multiple workflows, use output file for subsequent runs
+        if iconfig != 0:
+            input_filename = output_filename
+
+        # refresh resource list
+        global resources
+        for key in list(resources.keys()):
+            del resources[key]
+
+        # load workflow configuration
+        if rank == 0:
+            print('~~~ WORKFLOW ~~~' if len(configs) == 0
+                  else f'~~~ WORKFLOW ({iconfig+1}/{len(configs)}) ~~~')
+            with open(config, 'r') as f:
+                for line in f.readlines():
+                    print(line.strip('\n'))
+            print('~~~~~~~~~~~~~~~~\n')
         with open(config, 'r') as f:
-            for line in f.readlines():
-                print(line.strip('\n'))
-        print('~~~~~~~~~~~~~~~~\n')
-    with open(config, 'r') as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
+            config = yaml.load(f, Loader=yaml.FullLoader)
 
-    if rank == 0:
-        print('~~~ INIT ~~~')
-    manager = H5FlowManager(config, output_filename, input_filename=input_filename, start_position=start_position, end_position=end_position)
-    manager.init()
-    if rank == 0:
-        print('~~~~~~~~~~~~\n')
+        # execute workflow
+        if rank == 0:
+            print('~~~ INIT ~~~')
+        manager = H5FlowManager(config, output_filename, input_filename=input_filename, start_position=start_position, end_position=end_position)
+        manager.init()
+        if rank == 0:
+            print('~~~~~~~~~~~~\n')
 
-    if rank == 0:
-        print('~~~ RUN ~~~')
-    manager.run()
-    if rank == 0:
-        print('~~~~~~~~~~~\n')
+        if rank == 0:
+            print('~~~ RUN ~~~')
+        manager.run()
+        if rank == 0:
+            print('~~~~~~~~~~~\n')
 
-    if rank == 0:
-        print('~~~ FINISH ~~~')
-    manager.finish()
-    if rank == 0:
-        print('~~~~~~~~~~~~~~\n')
+        if rank == 0:
+            print('~~~ FINISH ~~~')
+        manager.finish()
+        if rank == 0:
+            print('~~~~~~~~~~~~~~\n')
 
 
 def main():
@@ -84,12 +94,17 @@ def main():
 
     '''
     parser = argparse.ArgumentParser()
-    parser.add_argument('--verbose', '-v', action='count', default=0, help='''Increase verbosity, can specify more for more verbose (e.g. -vv)''')
-    parser.add_argument('--input_filename', '-i', type=str, default=None, required=False, help='''input hdf5 file to loop over, optional if using a custom file generator''')
+    parser.add_argument('--verbose', '-v', action='count', default=0,
+                        help='''Increase verbosity, can specify more for more verbose (e.g. -vv)''')
+    parser.add_argument('--input_filename', '-i', type=str, default=None,
+                        required=False, help='''input hdf5 file to loop over, optional if using a custom file generator''')
     parser.add_argument('--output_filename', '-o', type=str, required=True)
-    parser.add_argument('--config', '-c', type=str, required=True, help='''yaml config file''')
-    parser.add_argument('--start_position', '-s', type=int, default=None, help='''start position within source dset (for partial file processing)''')
-    parser.add_argument('--end_position', '-e', type=int, default=None, help='''end position within source dset (for partial file processing)''')
+    parser.add_argument('--configs', '-c', type=str, nargs='+', required=True,
+                        help='''yaml config file(s)''')
+    parser.add_argument('--start_position', '-s', type=int, default=None,
+                        help='''start position within source dset (for partial file processing)''')
+    parser.add_argument('--end_position', '-e', type=int, default=None,
+                        help='''end position within source dset (for partial file processing)''')
     args = parser.parse_args()
 
     run(**vars(args))
