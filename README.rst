@@ -320,6 +320,11 @@ workflow.
 allowing for some simple inheritance from other configuration files in the
 current working directory.
 
+Multiple workflows can be run in sequence on a single file by passing them to
+the ``--configs`` argument in the order desired, e.g.::
+
+    h5flow --configs workflow0.yaml workflow1.yaml -o example.h5
+
 generators
 ~~~~~~~~~~
 
