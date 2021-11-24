@@ -90,7 +90,7 @@ def dereference_chain(sel, refs, data=None, regions=None, mask=None, ref_directi
     '''
     sel = np.r_[sel]
     mask = np.zeros_like(sel, dtype=bool) | (mask if mask is not None else False)
-    sel = ma.array(sel, mask=mask)
+    sel = ma.array(sel, mask=mask, shrink=False)
     shape = (len(sel),)
     dref = None
 
@@ -110,7 +110,7 @@ def dereference_chain(sel, refs, data=None, regions=None, mask=None, ref_directi
         mask = np.expand_dims(mask, axis=-1) | \
             (rfn.structured_to_unstructured(dref.mask).any(axis=-1).reshape(shape) \
             if dref.mask.dtype.kind == 'V' else dref.mask.reshape(shape))
-        dref = ma.array(dref.data.reshape(shape), mask=mask)
+        dref = ma.array(dref.data.reshape(shape), mask=mask, shrink=False)
 
         if i != nsteps-1:
             sel = dref
@@ -150,12 +150,12 @@ def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1)
     if not len(sel_idcs) and n_elem:
         # special case for if there is nothing selected in the mask
         if as_masked:
-            return ma.array(np.empty((n_elem,1), dtype=return_dtype), mask=True)
+            return ma.array(np.empty((n_elem,1), dtype=return_dtype), mask=True, shrink=False)
         else:
             return [np.empty(0, data.dtype) for _ in range(n_elem)]
     elif not len(sel_idcs):
         if as_masked:
-            return ma.array(np.empty((0,1), dtype=return_dtype), mask=True)
+            return ma.array(np.empty((0,1), dtype=return_dtype), mask=True, shrink=False)
         else:
             return []
 
@@ -228,7 +228,7 @@ def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1)
     ref_mask = np.isin(ref[:,ref_direction[0]], uniq_sel)
     if not np.any(ref_mask):
         # special case if no valid references for selection
-        return ma.array(np.empty((n_elem,1), dtype=return_dtype), mask=True)
+        return ma.array(np.empty((n_elem,1), dtype=return_dtype), mask=True, shrink=False)
 
     # get the number of references per parent and rearrange so that references are in ordered by parent
     uniq, counts = np.unique(ref[ref_mask,ref_direction[0]], return_counts=True)
@@ -265,5 +265,5 @@ def dereference(sel, ref, data=None, region=None, mask=None, ref_direction=(0,1)
     if sel_mask is not None:
         mask[~sel_mask] = condensed_mask[uniq_inv]
         data[~sel_mask] = condensed_data[uniq_inv]
-    return ma.array(data, mask=~mask)
+    return ma.array(data, mask=~mask, shrink=False)
 
