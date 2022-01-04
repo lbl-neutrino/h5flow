@@ -41,14 +41,14 @@ class H5FlowDataManager(object):
         self.mpi_flag = mpi
         self.mode = mode
 
-        self.comm = MPI.COMM_WORLD if H5FLOW_MPI else None
-        self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
-        self.size = self.comm.Get_size() if H5FLOW_MPI else 1
+        self.comm = MPI.COMM_WORLD if self.mpi_flag else None
+        self.rank = self.comm.Get_rank() if self.mpi_flag else 0
+        self.size = self.comm.Get_size() if self.mpi_flag else 1
 
         if drop_list:
             self.drop_list = drop_list
             uid = uuid.uuid4()
-            if H5FLOW_MPI:
+            if self.mpi_flag:
                 uid = self.comm.bcast(uid, root=0)
 
             self._temp_filepath = os.path.join(os.path.dirname(self.filepath),
@@ -130,7 +130,7 @@ class H5FlowDataManager(object):
             self.delete(path)
         self.close_file()
 
-        if H5FLOW_MPI:
+        if self.mpi_flag:
             self.comm.barrier()
         if self._temp_filepath is not None and self.rank == 0:
             logging.info(f'removing temporary file {self._temp_filepath}')
@@ -461,7 +461,7 @@ class H5FlowDataManager(object):
         '''
         dset = self.get_dset(dataset_name)
         curr_len = len(dset)
-        specs = self.comm.allgather(spec) if H5FLOW_MPI else [spec]
+        specs = self.comm.allgather(spec) if self.mpi_flag else [spec]
         if isinstance(spec, int):
             # create a new chunk at the end of the dataset
             n = sum(specs)
@@ -493,7 +493,7 @@ class H5FlowDataManager(object):
 
     def _update_ref_region(self, region_dset, sel, ref_arr, ref_offset):
         # Note:: ref_arr is the 1D array of indices into region_dset to update, ref_offset is where ref_array is positioned within a larger ref dataset
-        max_length = int(np.max(self.comm.allgather(sel.stop))) if H5FLOW_MPI else sel.stop
+        max_length = int(np.max(self.comm.allgather(sel.stop))) if self.mpi_flag else sel.stop
         if len(region_dset) < max_length:
             self._resize_dset(region_dset, (max_length,))
         region = region_dset[sel]
@@ -527,7 +527,7 @@ class H5FlowDataManager(object):
             :param refs: an integer array of shape (N,2) with refs[:,0] corresponding to the index in the parent dataset and refs[:,1] corresponding to the index in the child dataset
 
         '''
-        ns = self.comm.allgather(len(refs)) if H5FLOW_MPI else [len(refs)]
+        ns = self.comm.allgather(len(refs)) if self.mpi_flag else [len(refs)]
 
         ref_dset, ref_dir = self.get_ref(parent_dataset_name, child_dataset_name)
         ref_offset = len(ref_dset) + sum(ns[:self.rank])
