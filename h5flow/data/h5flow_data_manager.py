@@ -9,7 +9,7 @@ from .. import H5FLOW_MPI
 if H5FLOW_MPI:
     from mpi4py import MPI
 
-from .lib import ref_region_dtype
+from .lib import ref_region_dtype, dereference_chain
 
 
 class H5FlowDataManager(object):
@@ -28,6 +28,7 @@ class H5FlowDataManager(object):
             hfdm.get_ref(...)
             hfdm.reserve_data(...)
             hfdm.write_ref(...)
+            hfdm[...]
             ...
 
     '''
@@ -56,6 +57,67 @@ class H5FlowDataManager(object):
         else:
             self.drop_list = list()
             self._temp_filepath = None
+
+    def __repr__(self):
+        return f'H5FlowDataManager(filepath={self.filepath}, mode={self.mode}, mpi={self.mpi_flag}, drop_list={self.drop_list})'
+
+    def __getitem__(self, args):
+        '''
+            Fetch an object or load a dataset (or partial dataset) using the following convention::
+
+                dm[<object name>] # fetch a given object from the file
+                dm[<parent dataset name>, <child datasetname, optional>, ..., <slice into parent dataset, optional>] # load references between datasets
+
+            E.g. a file containing datasets ``'dataset0/data'``,
+            ``'dataset1/data'``, and references between them, can be accessed
+            via::
+
+                dm['dataset0'] # returns 'dataset0' group
+                dm['dataset0/data'] # returns 'dataset0/data' dataset
+
+                dm['dataset0',:100] # returns first 100 rows from 'dataset0/data' dataset
+                dm['dataset0','dataset1',:100] # returns referred data in 'dataset1/data' corresponding to the first 100 rows of 'dataset1/data'
+
+        '''
+        if not isinstance(args, str):
+            sel = None
+            if isinstance(args[-1], slice):
+                sel = args[-1]
+                args = args[:-1]
+            elif isinstance(args[-1], int):
+                sel = slice(args[-1], args[-1] + 1)
+                args = args[:-1]
+            if len(args) > 1:
+                path_specs = list(zip(args[:-1], args[1:]))
+                if sel is None:
+                    sel = slice(0, len(self.get_dset(args[0])))
+                    regions = None
+                else:
+                    regions = [self.get_ref_region(*spec) for spec in path_specs]
+                refs = [self.get_ref(*spec) for spec in path_specs]
+                refs, ref_directions = zip(*refs)
+                return dereference_chain(
+                    sel, refs, data=self.get_dset(args[-1]), regions=regions,
+                    ref_directions=ref_directions)
+            else:
+                if sel is None:
+                    return self.get_dset(args[0])
+                else:
+                    return self.get_dset(args[0])[sel]
+        else:
+            return self._route_fh(args)[args]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        try:
+            self.finish()
+        except:
+            try:
+                self.close_file()
+            except Exception as e:
+                raise e
 
     def finish(self):
         '''
@@ -108,7 +170,8 @@ class H5FlowDataManager(object):
     def fh(self):
         '''
             Direct access to the underlying h5py ``File`` object. Not recommended
-            for use. Instead, use ``get_dset(...)``, ``write_data(...)``, etc.
+            for use. Instead, use ``get_dset(...)``, ``write_data(...)``, or
+            the implemented ``__getitem__()``.
 
         '''
         if self._fh is None or not self._fh:

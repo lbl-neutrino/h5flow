@@ -34,7 +34,7 @@ def test_init(testfile, datamanager):
 def empty_testdset(datamanager):
     name = 'test/test'
     dm = datamanager
-    dm.create_dset('test/test', int)
+    dm.create_dset(name, int)
     return name
 
 
@@ -124,6 +124,27 @@ def test_write_ref(datamanager, full_testdset, full_testref):
 
     data = dereference(sel, ref, dm.get_dset(full_testdset[0]), ref_region, ref_direction=ref_dir)
     assert all([np.all(dm.get_dset(full_testdset[0])[sel] == d) for d in data])
+
+
+def test_getitem(datamanager, full_testdset, full_testref):
+    dm = datamanager
+    assert dm.get_dset(full_testdset[0]) == dm[full_testdset[0] + '/data']
+    assert len(dm[full_testdset[0], :10]) == 10
+    assert np.all(dm[full_testdset[0], :10] == dm.get_dset(full_testdset[0])[:10])
+    assert dm[tuple(full_testref[0])].dtype == dm.get_dset(full_testref[0][-1]).dtype
+    assert len(dm[tuple(full_testref[0])]) == len(dm.get_dset(full_testref[0][0]))
+    assert len(dm[full_testref[0][0], full_testref[0][1], :10]) == 10
+    assert len(dm[full_testref[0][0], full_testref[0][1], 0]) == 1
+
+
+def test_context(testfile):
+    with H5FlowDataManager(testfile, 'a', mpi=H5FLOW_MPI) as dm:
+        dm.create_dset('test', int)
+        assert dm['test']
+
+
+def test_repr(datamanager):
+    print(datamanager)
 
 
 @pytest.mark.skipif(size != 1, reason='test designed for single process only')
