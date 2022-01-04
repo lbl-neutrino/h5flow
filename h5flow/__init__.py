@@ -59,9 +59,12 @@ def run(configs, output_filename, input_filename=None, start_position=None, end_
         if rank == 0:
             print('~~~ WORKFLOW ~~~' if len(configs) == 0
                   else f'~~~ WORKFLOW ({iconfig+1}/{len(configs)}) ~~~')
-            with open(config, 'r') as f:
-                for line in f.readlines():
-                    print(line.strip('\n'))
+            if verbose > 0:
+                with open(config, 'r') as f:
+                    for line in f.readlines():
+                        print(line.strip('\n'))
+            else:
+                print(config)
             print('~~~~~~~~~~~~~~~~\n')
         with open(config, 'r') as f:
             config = yaml.load(f, Loader=yaml.FullLoader)

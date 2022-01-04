@@ -237,7 +237,6 @@ class H5FlowManager(object):
             cache = dict()
             for i, (stage, requirements) in enumerate(zip(self.stages, stage_requirements)):
                 self.update_cache(cache, self.generator.dset_name, chunk, requirements)
-                cache_size = sum([val.nbytes for val in cache.values()]) / (1024 * 1024)
                 stage.run(self.generator.dset_name, chunk, cache)
         if H5FLOW_MPI:
             self.comm.barrier()
@@ -309,8 +308,8 @@ class H5FlowManager(object):
         path = req['path']
         index_only = req['index_only']
 
-        logging.info(('loading requirement: ' + ' -> '.join([source_name] + path)) +
-                     ('' if not index_only else '(index)'))
+        logging.debug((f'loading requirement {req["name"]}: ' + ' -> '.join([source_name] + path)) +
+                      ('' if not index_only else '(index)'))
 
         chain = list(zip([source_name] + path[:-1], path))
 

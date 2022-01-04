@@ -33,4 +33,7 @@ class H5FlowTestStage(H5FlowStage):
         logging.info(f'source_slice: {source_slice}')
         logging.info('cache items:')
         for key, val in cache.items():
-            logging.info(f'\t{key} ({val.dtype.kind}{val.dtype.shape if val.dtype.shape else ""}): {val.shape}')
+            if hasattr(val, 'dtype'):
+                logging.info(f'\t{key} ({val.dtype.kind}{val.dtype.shape if val.dtype.shape else ""}): {val.shape}')
+            else:
+                logging.info(f'\t{key} ({type(val)}): {repr(val)}')
