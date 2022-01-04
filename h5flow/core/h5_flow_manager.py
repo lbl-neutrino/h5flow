@@ -313,8 +313,14 @@ class H5FlowManager(object):
 
         chain = list(zip([source_name] + path[:-1], path))
 
-        data = self.data_manager.get_dset(path[-1])
-        ref, ref_dir = list(zip(*[self.data_manager.get_ref(p, c) for p, c in chain]))
-        regions = [self.data_manager.get_ref_region(p, c) for p, c in chain]
+        try:
+            data = self.data_manager.get_dset(path[-1])
+            ref, ref_dir = list(zip(*[self.data_manager.get_ref(p, c) for p, c in chain]))
+            regions = [self.data_manager.get_ref_region(p, c) for p, c in chain]
 
-        return dereference_chain(source_slice, ref, data=data, regions=regions, ref_directions=ref_dir, indices_only=index_only)
+            return dereference_chain(source_slice, ref, data=data, regions=regions, ref_directions=ref_dir, indices_only=index_only)
+        except Exception as e:
+            logging.info(('failed to load: ' + ' -> '.join([source_name] + path)
+                          + ('' if not index_only else '(index)') + ' : '
+                          + str(e)))
+            return None
