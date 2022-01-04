@@ -471,7 +471,7 @@ pre-loaded data of the ``source_slice`` into the ``source_name`` dataset and any
 ``cache`` will be reloaded from the underlying hdf5 file, if required by
 downstream stages. Reading and writing other data objects from the file can be
 done via the ``H5FlowDataManager`` object within ``self.data_manager``. Refer to
-the ``h5flow_modules/examples.py`` for a working example.
+the ``examples/modules/examples.py`` for a working example.
 
 writing an ``H5FlowGenerator``
 ==============================

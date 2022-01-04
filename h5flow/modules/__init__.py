@@ -5,6 +5,7 @@ import sys
 import logging
 from pkgutil import iter_modules
 
+
 def find_class(classname, directory):
     '''
         Search the specified directory for a file containing a python
@@ -29,10 +30,12 @@ def find_class(classname, directory):
                 attribute = getattr(module, attribute_name)
                 if isclass(attribute):
                     if attribute_name == classname:
+                        logging.info(f'Using {classname} from {directory}/{name}.py')
                         return attribute
         except Exception as e:
-            logging.warning(f'Encountered import error: {e}')
+            logging.debug(f'Encountered import error: {e}')
     return None
+
 
 def get_class(classname):
     '''
@@ -50,18 +53,15 @@ def get_class(classname):
     found_class = find_class(classname, './')
 
     if found_class is None:
-        # search for h5flow_modules directory
-        found_class = find_class(classname, './h5flow_modules/')
-
-        # then recurse into h5flow_modules subdirectories
+        # then recurse into subdirectories
         if found_class is None:
-            for parent, dirs, files in os.walk('./h5flow_modules/'):
+            for parent, dirs, files in os.walk('./'):
                 for directory in dirs:
-                    found_class = find_class(classname, os.path.join(parent,directory))
+                    found_class = find_class(classname, os.path.join(parent, directory))
                     if found_class is not None:
                         break
                 if found_class is not None:
-                        break
+                    break
 
         if found_class is None:
             # then search in source

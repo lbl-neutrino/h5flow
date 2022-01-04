@@ -68,7 +68,7 @@ jobs:
     - name: Test example (mpi)
       if: matrix.mpi_enabled == 1
       run: |
-        mpiexec h5flow -vv -c example_config.yaml -o test.h5
+        mpiexec h5flow -vv -c examples/example_config.yaml -o test.h5
 
     - name: Run tests (no mpi)
       if: matrix.mpi_enabled == 0
@@ -78,4 +78,4 @@ jobs:
     - name: Test example (no mpi)
       if: matrix.mpi_enabled == 0
       run: |
-        h5flow -vv -c example_config.yaml -o test.h5
+        h5flow -vv -c examples/example_config.yaml -o test.h5
