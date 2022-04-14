@@ -371,7 +371,7 @@ class H5FlowDataManager(object):
         for key, val in attrs.items():
             fh[name].attrs[key] = val
 
-    def create_dset(self, dataset_name, dtype):
+    def create_dset(self, dataset_name, dtype, shape=()):
         '''
             Create a 1D dataset of ``dataset_name`` with datatype ``dtype``, if
             it doesn't already exist
@@ -385,7 +385,7 @@ class H5FlowDataManager(object):
 
         fh = self._route_fh(path)
         if path not in fh:
-            fh.require_dataset(path, (0,), maxshape=(None,),
+            fh.require_dataset(path, (0,) + shape, maxshape=(None,) + shape,
                                dtype=dtype)
 
     def create_ref(self, parent_dataset_name, child_dataset_name):
@@ -434,7 +434,8 @@ class H5FlowDataManager(object):
             fh[path + '/ref'].attrs['ref_region1'] = child_fh[f'{child_path}/ref_region'].name
 
     def _resize_dset(self, dset, new_shape):
-        dset.resize(new_shape)
+        curr_shape = dset.shape
+        dset.resize(new_shape + curr_shape[1:])
 
         if dset.name.endswith('/data'):
             for ref in self.get_refs(dset.name[:-5]):
@@ -536,7 +537,7 @@ class H5FlowDataManager(object):
 
         ref_dset, ref_dir = self.get_ref(parent_dataset_name, child_dataset_name)
         ref_offset = len(ref_dset) + sum(ns[:self.rank])
-        self._resize_dset(ref_dset, (len(ref_dset) + sum(ns), 2))
+        self._resize_dset(ref_dset, (len(ref_dset) + sum(ns),))
         ref_slice = slice(ref_offset, ref_offset + ns[self.rank])
         ref_dset[ref_slice] = refs[:, ref_dir]
 

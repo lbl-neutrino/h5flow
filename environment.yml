@@ -6,7 +6,7 @@ dependencies:
   - c-compiler
   - cxx-compiler
   - mpi4py
-  - hdf5=*=mpi_mpich*
+  - hdf5=*=*mpi_mpich*
   - pyyaml
   - pip
   - tqdm
