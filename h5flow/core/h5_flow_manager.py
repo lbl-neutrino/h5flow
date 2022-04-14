@@ -231,7 +231,7 @@ class H5FlowManager(object):
             print(f'Run loop on {self.generator.dset_name}:')
             print('  ' + ' -> '.join([stage.name for stage in self.stages]))
 
-        loop_gen = tqdm(self.generator) if self.rank == 0 else self.generator
+        loop_gen = tqdm(self.generator, smoothing=1) if self.rank == 0 else self.generator
         stage_requirements = [[r for stage in self.stages[:i + 1] for r in stage.requires] for i in range(len(self.stages))]
         for chunk in loop_gen:
             cache = dict()
