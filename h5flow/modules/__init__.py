@@ -55,7 +55,7 @@ def get_class(classname):
     if found_class is None:
         # then recurse into subdirectories
         if found_class is None:
-            for parent, dirs, files in os.walk('./'):
+            for parent, dirs, files in os.walk('./', followlinks=True):
                 for directory in dirs:
                     found_class = find_class(classname, os.path.join(parent, directory))
                     if found_class is not None:
