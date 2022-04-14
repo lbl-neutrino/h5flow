@@ -87,6 +87,11 @@ class H5FlowDataManager(object):
             elif isinstance(args[-1], int):
                 sel = slice(args[-1], args[-1] + 1)
                 args = args[:-1]
+            elif isinstance(args[-1], (str,bytes)):
+                pass
+            else:
+                sel = np.r_[args[-1]]
+                args = args[:-1]
             if len(args) > 1:
                 path_specs = list(zip(args[:-1], args[1:]))
                 if sel is None:
