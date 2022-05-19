@@ -412,7 +412,7 @@ class H5FlowDataManager(object):
 
             # create bi-directional reference dataset
             fh.require_dataset(path + '/ref', shape=(0, 2), maxshape=(None, 2),
-                               dtype='u8')
+                               dtype='u4')
             # link to source datasets
             fh[path + '/ref'].attrs['dset0'] = self.get_dset(parent_dataset_name).name
             fh[path + '/ref'].attrs['dset1'] = self.get_dset(child_dataset_name).name

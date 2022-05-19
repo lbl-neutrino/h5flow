@@ -4,7 +4,7 @@ import numpy.ma as ma
 import numpy.lib.recfunctions as rfn
 import logging
 
-ref_region_dtype = np.dtype([('start','i8'), ('stop','i8')])
+ref_region_dtype = np.dtype([('start','i4'), ('stop','i4')])
 
 def print_ref(grp):
     '''
