@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 import logging
+global H5FLOW_MPI
 try:
     from mpi4py import MPI
     H5FLOW_MPI = True
 except Exception as e:
     logging.warning(f'Running without mpi4py because {e}')
     H5FLOW_MPI = False
+
+
 from .core import H5FlowManager, resources
 import argparse
 import yaml
