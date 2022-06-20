@@ -35,7 +35,7 @@ jobs:
         CC: mpicc
         HDF5_MPI: "ON"
       run: |
-        ls '/usr/share/miniconda/envs/test/lib/python3.9/_sys*'
+        ls /usr/share/miniconda/envs/test/lib/python3.9/
         cp /usr/share/miniconda/envs/test/lib/python3.9/_sysconfigdata_x86_64_conda_cos6_linux_gnu.py /usr/share/miniconda/envs/test/lib/python3.9/_sysconfigdata_x86_64_conda_linux_gnu.py
         conda env update -n test -f environment.yml
         pip install .
