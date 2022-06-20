@@ -1,5 +1,7 @@
 from tqdm import tqdm
 import logging
+import sys
+import numpy as np
 
 from .. import H5FLOW_MPI
 if H5FLOW_MPI:
@@ -73,7 +75,9 @@ class H5FlowManager(object):
 
         for obj_config in config.get('resources', list()):
             obj_classname = obj_config['classname']
-            obj_class = get_class(obj_classname)
+            obj_path = obj_config.get('path', None)
+            print(obj_classname, obj_path)
+            obj_class = get_class(obj_classname, path=obj_path)
             if issubclass(obj_class, H5FlowResource):
                 resources[obj_classname] = obj_class(
                     classname=obj_classname,
@@ -124,7 +128,7 @@ class H5FlowManager(object):
         source_name = config['flow']['source']
         source_config = config[source_name] if source_name in config else self._default_generator_config(source_name)
 
-        self.generator = get_class(source_config['classname'])(
+        self.generator = get_class(source_config['classname'], path=source_config.get('path', None))(
             classname=source_config['classname'],
             dset_name=source_config['dset_name'],
             data_manager=self.data_manager,
@@ -148,7 +152,7 @@ class H5FlowManager(object):
         stage_names = config['flow'].get('stages', list())
         stage_args = [config[stage_name] for stage_name in stage_names]
         self.stages = [
-            get_class(args['classname'])(
+            get_class(args['classname'], path=args.get('path',None))(
                 classname=args['classname'],
                 name=name,
                 data_manager=self.data_manager,
@@ -162,7 +166,8 @@ class H5FlowManager(object):
             print(f'Could not find generator description, using default loop behavior on {source_name} dataset')
         return dict(
             classname='H5FlowDatasetLoopGenerator',
-            dset_name=source_name
+            dset_name=source_name,
+            path='h5flow.modules'
         )
 
     def format_requirements(self, requirements):
@@ -238,6 +243,7 @@ class H5FlowManager(object):
             for i, (stage, requirements) in enumerate(zip(self.stages, stage_requirements)):
                 self.update_cache(cache, self.generator.dset_name, chunk, requirements)
                 stage.run(self.generator.dset_name, chunk, cache)
+            sys.stdout.flush()
         if H5FLOW_MPI:
             self.comm.barrier()
 
@@ -311,7 +317,21 @@ class H5FlowManager(object):
         logging.debug((f'loading requirement {req["name"]}: ' + ' -> '.join([source_name] + path)) +
                       ('' if not index_only else '(index)'))
 
-        chain = list(zip([source_name] + path[:-1], path))
+        if self.data_manager.ref_exists(source_name, path[0]):
+            chain = list(zip([source_name] + path[:-1], path))
+        elif len(path) > 1:
+            chain = list(zip(path[:-1], path[1:]))
+        else:
+            try:
+                if not index_only:
+                    return self.data_manager.get_dset(path[0])[source_slice]
+                else:
+                    return np.r_[source_slice]
+            except Exception as e:
+                logging.info('failed to load: ' + path[0]
+                             + ('' if not index_only else '(index)') + ' : '
+                             + str(e))
+            return None
 
         try:
             data = self.data_manager.get_dset(path[-1])
