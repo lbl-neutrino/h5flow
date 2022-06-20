@@ -32,7 +32,7 @@ jobs:
         auto-update-conda: true
         environment-file: environment.yml
         activate-environment: test
-        python-version: "3.7"
+        python-version: "3.9"
 
     - uses: conda-incubator/setup-miniconda@v2
       if: matrix.mpi_enabled == 0
@@ -40,21 +40,10 @@ jobs:
         auto-update-conda: true
         environment-file: environment-nompi.yml
         activate-environment: test
-        python-version: "3.7"
+        python-version: "3.9"
 
-    - name: Install dependencies (mpi)
-      if: matrix.mpi_enabled == 1
-      env:
-        CC: mpicc
-        HDF5_MPI: "ON"
+    - name: Install
       run: |
-        #conda env update -n test -f environment.yml
-        pip install .
-
-    - name: Install dependencies (no mpi)
-      if: matrix.mpi_enabled == 0
-      run: |
-        #conda env update -n test -f environment-nompi.yml
         pip install .
 
     - name: Lint
