@@ -27,10 +27,10 @@ jobs:
       if: matrix.mpi_enabled == 1
       env:
         CC: mpicc
-	HDF5_MPI: "ON"
+        HDF5_MPI: "ON"
       with:
         auto-update-conda: true
-	environment-file: environment.yml
+        environment-file: environment.yml
         activate-environment: test
         python-version: "3.7"
 
@@ -38,7 +38,7 @@ jobs:
       if: matrix.mpi_enabled == 0
       with:
         auto-update-conda: true
-	environment-file: environment-nompi.yml
+        environment-file: environment-nompi.yml
         activate-environment: test
         python-version: "3.7"
 
