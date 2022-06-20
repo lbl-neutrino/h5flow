@@ -27,7 +27,7 @@ jobs:
       with:
         auto-update-conda: true
         activate-environment: test
-        python-version: "3.9"
+        python-version: "3.7"
 
     - name: Install dependencies (mpi)
       if: matrix.mpi_enabled == 1
@@ -35,7 +35,6 @@ jobs:
         CC: mpicc
         HDF5_MPI: "ON"
       run: |
-        conda activate test
         conda env update -n test -f environment.yml
         pip install .
 
