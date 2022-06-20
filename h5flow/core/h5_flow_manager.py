@@ -1,6 +1,7 @@
 from tqdm import tqdm
 import logging
 import sys
+import numpy as np
 
 from .. import H5FLOW_MPI
 if H5FLOW_MPI:
