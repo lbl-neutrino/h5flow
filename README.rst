@@ -334,13 +334,16 @@ file::
 
     dummy_generator:
         classname: DummyGenerator
+	path: <python import path, optional>
         dset_name: <dataset to be accessed by each stage>
         params:
             dummy_param: value
 
-For both generators and stages, classes will be discovered for within the
-current directory, the ``./h5flow_modules/`` directory, or the ``h5flow/modules``
-directory (in that order) and automatically loaded upon runtime.
+For both generators and stages, classes can be discovered for within the
+current directory tree or the ``h5flow/modules`` directory (in that order)
+and automatically loaded upon runtime. For faster startup, a direct python
+import path to the module that contains the class can be specified via
+the ``path`` key.
 
 stages
 ~~~~~~
@@ -354,6 +357,7 @@ with any desired parameters at the top level within the yaml file::
 
     dummy_stage0:
         classname: DummyStage
+	path: a.dummy.path
         params:
             dummy_param0: 10
             dummy_param1: [a,list,of,strings]
@@ -405,12 +409,13 @@ level of the configuration yaml::
 
     resources:
          - classname: DummyResource
+	   path: a.dummy.path
            params:
                 example_parameter: 'example'
 
 These objects can be accessed within a workflow source via their classname::
 
-    from h5flow.core import resources
+    from h5flow import resources
 
     resources['DummyResource'] # access the DummyResource
 
