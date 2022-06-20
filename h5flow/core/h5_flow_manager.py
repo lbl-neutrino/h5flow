@@ -76,7 +76,6 @@ class H5FlowManager(object):
         for obj_config in config.get('resources', list()):
             obj_classname = obj_config['classname']
             obj_path = obj_config.get('path', None)
-            print(obj_classname, obj_path)
             obj_class = get_class(obj_classname, path=obj_path)
             if issubclass(obj_class, H5FlowResource):
                 resources[obj_classname] = obj_class(
