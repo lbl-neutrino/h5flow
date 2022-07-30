@@ -405,7 +405,7 @@ class H5FlowDataManager(object):
         path = f'{parent_dataset_name}/ref/{child_dataset_name}'
 
         fh = self._route_fh(path)
-        if path not in fh:
+        if path + '/ref' not in fh:
             # create reference group, if not present
             if f'{parent_dataset_name}/ref' not in fh:
                 fh.create_group(f'{parent_dataset_name}/ref')
