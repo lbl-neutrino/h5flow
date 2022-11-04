@@ -17,7 +17,7 @@ from yamlinclude import YamlIncludeConstructor
 YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir='./')
 
 
-def run(configs, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0):
+def run(configs, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0, drop=None):
     '''
         Execute a workflow specified by ``config`` writing to ``output_filename``.
 
@@ -33,6 +33,8 @@ def run(configs, output_filename, input_filename=None, start_position=None, end_
 
         :param verbose: ``int``, verbosity level (``0 = warnings only``, ``1 = info``, ``2 = debug``)
 
+        :param drop: ``list`` of ``str``, additional objects to drop from output file
+
     '''
     rank = MPI.COMM_WORLD.Get_rank() if H5FLOW_MPI else 0
 
@@ -45,6 +47,8 @@ def run(configs, output_filename, input_filename=None, start_position=None, end_
         print(f'input file: {input_filename}')
         print(f'start: {start_position}')
         print(f'end: {end_position}')
+        if drop is not None:
+            print(f'drop: {drop}')
         print(f'verbose: {verbose}')
         print('~~~~~~~~~~~~~~\n')
 
@@ -71,6 +75,9 @@ def run(configs, output_filename, input_filename=None, start_position=None, end_
             print('~~~~~~~~~~~~~~~~\n')
         with open(config, 'r') as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
+
+        if drop is not None:
+            config['flow']['drop'] = config['flow'].get('drop', list()) + drop
 
         # execute workflow
         if rank == 0:
@@ -111,6 +118,8 @@ def main():
                         help='''start position within source dset (for partial file processing)''')
     parser.add_argument('--end_position', '-e', type=int, default=None,
                         help='''end position within source dset (for partial file processing)''')
+    parser.add_argument('--drop', '-d', type=str, default=None, nargs='+',
+                        help='''drop objects from output file''')
     args = parser.parse_args()
 
     run(**vars(args))
