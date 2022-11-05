@@ -8,6 +8,7 @@ flow:
 
 resources:
   - classname: ExampleResource
+    path: examples.modules.examples  
     params:
       path: 'meta'
       data:
@@ -17,17 +18,20 @@ resources:
 
 input:
   classname: ExampleGenerator
+  path: examples.modules.examples  
   dset_name: 'input/index'
   params:
     chunk_size: 1024
 
 example_stage0:
   classname: ExampleStage
+  path: examples.modules.examples  
   params:
     output_dset: 'stage0/example'
 
 example_stage1:
   classname: ExampleStage
+  path: examples.modules.examples
   requires:
       # load simple input/index -> example_stage0/example references
       - 'stage0/example'
@@ -46,8 +50,10 @@ example_stage1:
 
 example_stage2:
   classname: ExampleStage
+  path: examples.modules.examples  
   params:
     output_dset: 'example_stage2/example' # remove this dataset from output file
 
 print: # print the contents of the cache if in verbose mode
   classname: H5FlowTestStage
+  path: h5flow.modules
