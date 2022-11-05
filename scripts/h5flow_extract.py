@@ -54,7 +54,7 @@ def main(**kwargs):
                 to_process.append((dset, entries))
                 print(f'Extract {len(entries)} entries from {dset}') if f_out.rank == 0 else None
 
-            pbar = tqdm.tqdm(total=len(to_process), position=0, disable=f_out.rank != 0)
+            pbar = tqdm.tqdm(total=len(to_process), position=0, disable=f_out.rank != 0, ascii=True)
             while True:
                 if not to_process:
                     break
@@ -79,7 +79,7 @@ def main(**kwargs):
 
                 # mark entries that should be flagged
                 batch_size_ = max(batch_size // entries.dtype.itemsize, 1)
-                for ibatch in tqdm.tqdm(range(f_out.rank, len(entries)//batch_size_ + 1 + f_out.rank,  f_out.size), position=1, leave=None, desc=f'Create flags {batch_size_}', disable=f_out.rank != 0):
+                for ibatch in tqdm.tqdm(range(f_out.rank, len(entries)//batch_size_ + 1 + f_out.rank,  f_out.size), position=1, leave=None, desc=f'Create flags {batch_size_}', disable=f_out.rank != 0, ascii=True):
                     batch = entries[ibatch * batch_size_:(ibatch + 1) * batch_size_]
                     if not len(batch):
                         batch = slice(-1,-1)
@@ -87,7 +87,7 @@ def main(**kwargs):
 
                 # get associated reference datasets
                 refs = f_in.get_refs(dset)
-                for ref in tqdm.tqdm(refs, leave=None, position=2, desc='Collect referred dsets', disable=f_out.rank != 0):
+                for ref in tqdm.tqdm(refs, leave=None, position=2, desc='Collect referred dsets', disable=f_out.rank != 0, ascii=True):
                     # add referred data to processing queue
                     other_dset = ref.attrs['dset1'][1:-5] if ref.attrs['dset0'][1:-5] == dset else ref.attrs['dset0'][1:-5]
                     
@@ -97,7 +97,7 @@ def main(**kwargs):
                     child_entries = [list()]
                     ref_region = f_in.get_ref_region(dset, other_dset)
                     batch_size_ = max(batch_size // int(np.max((ref_region[:batch_size]['stop'] - ref_region[:batch_size]['start']) * 2 * ref.dtype.itemsize).clip(1,None)), 1)
-                    for ibatch in tqdm.tqdm(range(f_out.rank, len(entries)//batch_size_ + f_out.rank + 1, f_out.size), position=3, leave=None, desc=f'{ref.name} {batch_size_}', disable=f_out.rank != 0):
+                    for ibatch in tqdm.tqdm(range(f_out.rank, len(entries)//batch_size_ + f_out.rank + 1, f_out.size), position=3, leave=None, desc=f'{ref.name} {batch_size_}', disable=f_out.rank != 0, ascii=True):
                         batch = entries[ibatch * batch_size_:(ibatch + 1) * batch_size_]
 
                         if not len(batch):
@@ -161,7 +161,7 @@ def main(**kwargs):
                     # copy entries
                     batch_size_ = max(batch_size // obj.dtype.itemsize, 1)
                     flag_batch_size_ = max(batch_size // flag_dset.dtype.itemsize, 1)
-                    pbar = tqdm.tqdm(total=len(flag_dset), desc=f'Copy {path} {batch_size_}', disable=f_out.rank != 0)
+                    pbar = tqdm.tqdm(total=len(flag_dset), desc=f'Copy {path} {batch_size_}', disable=f_out.rank != 0, ascii=True)
                     for ibatch_flag in range(len(flag_dset)//flag_batch_size_ + 1):
                         flag_batch = flag_dset[ibatch_flag * flag_batch_size_:(ibatch_flag+1) * flag_batch_size_]
                         flag_index = np.where(flag_batch)[0].astype(int) + ibatch_flag * flag_batch_size_
@@ -241,7 +241,7 @@ def main(**kwargs):
                     batch_size_ = max(batch_size // int(max(2 * obj.dtype.itemsize * f_out.size, 1)), 1)
                     parent_cache = None
                     child_cache = None
-                    for ibatch in tqdm.tqdm(range(f_out.rank, len(ref)//batch_size_ + f_out.rank + 1, f_out.size), desc=f'Regen {path} {batch_size_}', disable=f_out.rank != 0):
+                    for ibatch in tqdm.tqdm(range(f_out.rank, len(ref)//batch_size_ + f_out.rank + 1, f_out.size), desc=f'Regen {path} {batch_size_}', disable=f_out.rank != 0, ascii=True):
                         batch_ref = ref[ibatch*batch_size_:(ibatch+1)*batch_size_]
                         new_ref = batch_ref.copy().astype(int)
                         if len(new_ref):
@@ -292,7 +292,7 @@ if __name__ == '__main__':
     parser.add_argument('--datasets', '-d', type=str, nargs='+', required=True,
                         help='''Datasets to copy''')
     parser.add_argument('--filter', '-f', type=json.loads, default=None,
-                        help='''JSON-formatted filter spec for each dataset''')
+                        help='''JSON-formatted filter spec for each dataset, can be null (use all entries), a list of indices, or a dataset and field name''')
     parser.add_argument('--batch_size', type=int, default=1024*1024,
                         help='''Maximum data to handle at a given time (bytes)''')
     # filter spec:
