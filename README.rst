@@ -57,7 +57,7 @@ usage
 
 To run a single-process workflow::
 
-    h5flow -o <output file>.h5 -c <config file>.yaml\
+    h5flow --nompi -o <output file>.h5 -c <config file>.yaml\
         -i <input file, opt.> -s <start position, opt.> -e <end position, opt.>
 
 The output file here is the destination hdf5 file path. The config file is a
@@ -93,6 +93,10 @@ variable::
         from mpi4py import MPI
     else:
         # non-mpi compatible code
+
+You can manually disable MPI within ``h5flow`` by either setting the
+``H5FLOW_NOMPI`` environment flag, or by providing the  ``--nompi``
+flag at runtime.
 
 h5flow hdf5 structure
 =====================
