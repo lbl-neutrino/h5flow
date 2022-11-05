@@ -76,7 +76,7 @@ class H5FlowDataManager(object):
                 dm['dataset0/data'] # returns 'dataset0/data' dataset
 
                 dm['dataset0',:100] # returns first 100 rows from 'dataset0/data' dataset
-                dm['dataset0','dataset1',:100] # returns referred data in 'dataset1/data' corresponding to the first 100 rows of 'dataset1/data'
+                dm['dataset0','dataset1',:100] # returns referred data in 'dataset1/data' corresponding to the first 100 rows of 'dataset0/data'
 
         '''
         if not isinstance(args, str):
