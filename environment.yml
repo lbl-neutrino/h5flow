@@ -2,11 +2,11 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.9
+  - python=3.11
   - c-compiler
   - cxx-compiler
-  - mpi4py
   - hdf5=*=*mpi_mpich*
+  - mpi4py
   - pyyaml
   - pip
   - tqdm
