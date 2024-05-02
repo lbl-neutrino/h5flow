@@ -9,4 +9,4 @@ dependencies:
   - tqdm
   - pytest
   - pip:
-    - pyyaml-include
+    - pyyaml-include==1.4.1
