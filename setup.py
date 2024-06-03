@@ -22,7 +22,7 @@ setuptools.setup(name='h5flow',
                      'numpy',
                      'h5py>=2.10',
                      'PyYAML',
-                     'pyyaml-include',
+                     'pyyaml-include<2.0',
                      'tqdm',
                      'pytest',
                  ]
