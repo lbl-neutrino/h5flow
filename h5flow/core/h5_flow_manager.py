@@ -35,7 +35,7 @@ class H5FlowManager(object):
 
     '''
 
-    def __init__(self, config, output_filename, input_filename=None, start_position=None, end_position=None):
+    def __init__(self, config, output_filename, input_filename=None, start_position=None, end_position=None, compression=None):
         self.comm = MPI.COMM_WORLD if H5FLOW_MPI else None
         self.rank = self.comm.Get_rank() if H5FLOW_MPI else 0
         self.size = self.comm.Get_size() if H5FLOW_MPI else 1
@@ -43,7 +43,7 @@ class H5FlowManager(object):
         self.drop_list = config['flow'].get('drop', list())
 
         # set up the data manager
-        self.configure_data_manager(output_filename, config)
+        self.configure_data_manager(output_filename, config, compression=compression)
 
         # set up resources
         self.configure_resources(config, input_filename, start_position, end_position)
@@ -89,7 +89,7 @@ class H5FlowManager(object):
             else:
                 raise RuntimeError(f'failed to load resource {obj_classname} - does not inherit from H5FlowResource')
 
-    def configure_data_manager(self, output_filename, config):
+    def configure_data_manager(self, output_filename, config, compression=None):
         '''
             Create an ``H5FlowDataManager`` to coordinate access into
             ``output_filename``. Access to the data manager is provided via::
@@ -102,7 +102,7 @@ class H5FlowManager(object):
             :param config: ``dict``, parsed yaml config for workflow
 
         '''
-        self.data_manager = H5FlowDataManager(output_filename, drop_list=self.drop_list)
+        self.data_manager = H5FlowDataManager(output_filename, drop_list=self.drop_list, compression=compression)
 
     def configure_generator(self, input_filename, config, start_position, end_position):
         '''

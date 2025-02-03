@@ -25,7 +25,7 @@ from yamlinclude import YamlIncludeConstructor
 YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir='./')
 
 
-def run(configs, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0, drop=None, nompi=False):
+def run(configs, output_filename, input_filename=None, start_position=None, end_position=None, verbose=0, drop=None, nompi=False, compression=None):
     '''
         Execute a workflow specified by ``config`` writing to ``output_filename``.
 
@@ -49,7 +49,7 @@ def run(configs, output_filename, input_filename=None, start_position=None, end_
     global H5FLOW_MPI
     if nompi == True and H5FLOW_MPI:
         H5FLOW_MPI = False
-    
+
     rank = MPI.COMM_WORLD.Get_rank() if H5FLOW_MPI else 0
 
     log_level = {0: 'WARNING', 1: 'INFO', 2: 'DEBUG'}[verbose]
@@ -104,7 +104,8 @@ def run(configs, output_filename, input_filename=None, start_position=None, end_
         # execute workflow
         if rank == 0:
             print('~~~ INIT ~~~')
-        manager = H5FlowManager(config, output_filename, input_filename=input_filename, start_position=start_position, end_position=end_position)
+        manager = H5FlowManager(config, output_filename, input_filename=input_filename,
+                                start_position=start_position, end_position=end_position, compression=compression)
         manager.init()
         if rank == 0:
             print('~~~~~~~~~~~~\n')
@@ -144,6 +145,8 @@ def main():
                         help='''drop objects from output file''')
     parser.add_argument('--nompi', action='store_true', default=False,
                         help='''run h5flow without mpi enabled (can also be disabled by setting H5FLOW_NOMPI)''')
+    parser.add_argument('--compression', '-z', type=str, default=None, choices=['gzip', 'lzf'],
+                        help='''Compression to apply to datasets''')
     args = parser.parse_args()
 
     run(**vars(args))

@@ -34,12 +34,13 @@ class H5FlowDataManager(object):
     '''
     _temp_filename_fmt = 'tmp-h5flow-%y.%m.%d-%H.%M.%S-{uid}.h5'
 
-    def __init__(self, filepath, mode='a', mpi=H5FLOW_MPI, drop_list=None):
+    def __init__(self, filepath, mode='a', mpi=H5FLOW_MPI, drop_list=None, compression=None):
         self.filepath = filepath
         self._fh = None
         self._temp_fh = None
         self.mpi_flag = mpi
         self.mode = mode
+        self.compression = compression
 
         self.comm = MPI.COMM_WORLD if self.mpi_flag else None
         self.rank = self.comm.Get_rank() if self.mpi_flag else 0
@@ -386,7 +387,7 @@ class H5FlowDataManager(object):
         fh = self._route_fh(path)
         if path not in fh:
             fh.require_dataset(path, (0,) + shape, maxshape=(None,) + shape,
-                               dtype=dtype)
+                               compression=self.compression, dtype=dtype)
 
     def create_ref(self, parent_dataset_name, child_dataset_name):
         '''
@@ -412,7 +413,7 @@ class H5FlowDataManager(object):
 
             # create bi-directional reference dataset
             fh.require_dataset(path + '/ref', shape=(0, 2), maxshape=(None, 2),
-                               dtype='u4')
+                               compression=self.compression, dtype='u4')
             # link to source datasets
             fh[path + '/ref'].attrs['dset0'] = self.get_dset(parent_dataset_name).name
             fh[path + '/ref'].attrs['dset1'] = self.get_dset(child_dataset_name).name
@@ -422,9 +423,9 @@ class H5FlowDataManager(object):
             child_dset = self.get_dset(child_dataset_name)
             child_fh = self._route_fh(child_path)
             fh.require_dataset(path + '/ref_region', shape=(len(parent_dset),), maxshape=(None,),
-                               dtype=ref_region_dtype, fillvalue=np.zeros((1,), dtype=ref_region_dtype))
+                               compression=self.compression, dtype=ref_region_dtype, fillvalue=np.zeros((1,), dtype=ref_region_dtype))
             child_fh.require_dataset(child_path + '/ref_region', shape=(len(child_dset),), maxshape=(None,),
-                                     dtype=ref_region_dtype, fillvalue=np.zeros((1,), dtype=ref_region_dtype))
+                                     compression=self.compression, dtype=ref_region_dtype, fillvalue=np.zeros((1,), dtype=ref_region_dtype))
 
             # link to references
             fh[path + '/ref_region'].attrs['ref'] = fh[path + '/ref'].name
