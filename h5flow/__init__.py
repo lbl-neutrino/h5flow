@@ -45,6 +45,8 @@ def run(configs, output_filename, input_filename=None, start_position=None, end_
 
         :param nompi: ``bool`` flag to force run without MPI
 
+        :param compression: ``str``, compression algorithm to use; do not compres if None
+
     '''
     global H5FLOW_MPI
     if nompi == True and H5FLOW_MPI:
@@ -69,6 +71,8 @@ def run(configs, output_filename, input_filename=None, start_position=None, end_
             print(f'drop: {drop}')
         if nompi is not False:
             print(f'no mpi: {nompi}')
+        if compression is not None:
+            print(f'compression: {compression}')
         if verbose > 0:
             print(f'verbose: {log_level}')
         print('~~~~~~~~~~~~~~\n')
